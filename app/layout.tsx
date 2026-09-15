@@ -3,6 +3,7 @@ import { Geist_Mono, DM_Sans, Outfit } from "next/font/google"
 
 import "./globals.css"
 import { SessionProvider } from "@/components/auth/session-provider"
+import { SiteHeader } from "@/components/site-header"
 import { ThemeProvider } from "@/components/theme-provider"
 import { cn } from "@/lib/utils";
 
@@ -34,7 +35,10 @@ export default function RootLayout({
     >
       <body>
         <SessionProvider>
-          <ThemeProvider>{children}</ThemeProvider>
+          <ThemeProvider>
+            <SiteHeader />
+            {children}
+          </ThemeProvider>
         </SessionProvider>
       </body>
     </html>

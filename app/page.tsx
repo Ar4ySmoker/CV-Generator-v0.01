@@ -1,15 +1,12 @@
 import { FileText } from "lucide-react"
 
-import { AuthNav } from "@/components/auth/auth-nav"
 import { Generator } from "@/components/generator"
+import { RegistrationCta } from "@/components/registration-cta"
 import { Badge } from "@/components/ui/badge"
 
 export default function Page() {
   return (
     <main className="mx-auto flex min-h-svh w-full max-w-5xl flex-col gap-8 px-6 py-10">
-      <div className="flex justify-end">
-        <AuthNav />
-      </div>
       <header className="flex flex-col items-center gap-4 text-center">
         <div className="flex items-center gap-2">
           <FileText className="size-6 text-primary" />
@@ -23,6 +20,8 @@ export default function Page() {
           под вакансию. Без регистрации, всё на лету.
         </p>
       </header>
+
+      <RegistrationCta />
 
       <Generator />
 

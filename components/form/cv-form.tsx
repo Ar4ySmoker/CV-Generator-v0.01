@@ -1,12 +1,14 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import Link from "next/link"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import {
   ArrowLeft,
   ArrowRight,
   Briefcase,
+  Check,
   Code,
   Download,
   FolderGit2,
@@ -22,6 +24,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Form } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -143,6 +146,10 @@ export function CvForm({
   generateExtras,
   allowSaveProfile = false,
   onGenerated,
+  submitMode = "generate",
+  profileId,
+  initialLabel = "",
+  onSaved,
 }: {
   mode: Mode
   disclaimerAccepted: boolean
@@ -152,9 +159,17 @@ export function CvForm({
   generateExtras?: { save?: boolean; applicationId?: string; profileId?: string }
   allowSaveProfile?: boolean
   onGenerated?: () => void
+  submitMode?: "generate" | "saveProfile"
+  profileId?: string
+  initialLabel?: string
+  onSaved?: () => void
 }) {
-  const steps = buildSteps(mode)
+  const isProfileMode = submitMode === "saveProfile"
+  const steps = buildSteps(mode).filter(
+    (s) => !(isProfileMode && s.id === "vacancy")
+  )
   const [stepIndex, setStepIndex] = useState(0)
+  const [label, setLabel] = useState(initialLabel)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
@@ -201,6 +216,37 @@ export function CvForm({
   async function onSubmit(values: CvFormValues) {
     setLoading(true)
     setError(null)
+
+    if (isProfileMode) {
+      if (!label.trim()) {
+        setError("Укажите название профиля")
+        setLoading(false)
+        return
+      }
+      try {
+        const res = await fetch(
+          profileId ? `/api/profiles/${profileId}` : "/api/profiles",
+          {
+            method: profileId ? "PATCH" : "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ label: label.trim(), data: values }),
+          }
+        )
+        if (!res.ok) {
+          const data = (await res.json().catch(() => ({}))) as { error?: string }
+          throw new Error(data?.error ?? "Не удалось сохранить профиль")
+        }
+        setDone(true)
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Не удалось сохранить профиль"
+        )
+      } finally {
+        setLoading(false)
+      }
+      return
+    }
+
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
@@ -266,6 +312,29 @@ export function CvForm({
     }
   }
 
+  if (done && isProfileMode) {
+    return (
+      <Card className="mx-auto w-full max-w-xl">
+        <CardContent className="flex flex-col items-center gap-4 px-6 py-10 text-center">
+          <Check className="size-10 text-primary" />
+          <h2 className="font-heading text-xl font-medium">Профиль сохранён</h2>
+          <p className="text-sm text-muted-foreground">
+            Данные сохранены. Теперь их можно использовать при генерации CV.
+          </p>
+          <Button
+            variant="outline"
+            onClick={() => {
+              onSaved?.()
+              onBack()
+            }}
+          >
+            Готово
+          </Button>
+        </CardContent>
+      </Card>
+    )
+  }
+
   if (done) {
     return (
       <Card className="mx-auto w-full max-w-xl">
@@ -275,6 +344,18 @@ export function CvForm({
           <p className="text-sm text-muted-foreground">
             Файл CV.docx загружен. Проверьте, как выглядит документ.
           </p>
+
+          {!allowSaveProfile ? (
+            <div className="flex flex-col items-center gap-2 rounded-xl border border-border/60 bg-muted/30 px-4 py-3">
+              <p className="text-xs text-muted-foreground">
+                Данные не сохранены. Зарегистрируйтесь, чтобы хранить профиль и
+                переиспользовать его при следующих откликах.
+              </p>
+              <Button asChild size="sm">
+                <Link href="/register">Создать аккаунт</Link>
+              </Button>
+            </div>
+          ) : null}
 
           {allowSaveProfile && !profileSaved ? (
             <div className="flex w-full max-w-xs flex-col gap-2">
@@ -365,6 +446,17 @@ export function CvForm({
 
             <Separator />
 
+            {isProfileMode ? (
+              <div className="flex flex-col gap-1.5">
+                <Label>Название профиля</Label>
+                <Input
+                  value={label}
+                  onChange={(e) => setLabel(e.target.value)}
+                  placeholder="Напр. Full Stack Developer"
+                />
+              </div>
+            ) : null}
+
             <StepComponent />
 
             {error ? (
@@ -380,7 +472,7 @@ export function CvForm({
               </Button>
               {isLast ? (
                 <Button type="submit" disabled={loading}>
-                  Сгенерировать CV
+                  {isProfileMode ? "Сохранить профиль" : "Сгенерировать CV"}
                 </Button>
               ) : (
                 <Button type="button" onClick={handleNext}>

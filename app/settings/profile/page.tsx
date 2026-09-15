@@ -11,10 +11,10 @@ export default async function ProfilePage() {
 
   return (
     <div>
-      <h1 className="font-heading text-2xl font-medium">Профили</h1>
+      <h1 className="font-heading text-2xl font-medium">Профиль</h1>
       <p className="text-sm text-muted-foreground">
-        Переиспользуемые мастер-данные CV. Профиль по умолчанию подставляется при
-        генерации CV под вакансию.
+        Заполните данные о себе один раз — они будут подставляться при генерации
+        CV и в откликах.
       </p>
       <div className="mt-4">
         <ProfilesManager />
