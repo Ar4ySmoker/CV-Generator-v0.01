@@ -4,6 +4,7 @@ const protectedPrefixes = [
   "/dashboard",
   "/applications",
   "/offers",
+  "/teams",
   "/settings",
 ]
 

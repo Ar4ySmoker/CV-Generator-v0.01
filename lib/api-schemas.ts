@@ -30,6 +30,9 @@ export const applicationCreateSchema = z.object({
   vacancyText: optionalStr,
   notes: optionalStr,
   contactIds: z.array(z.string()).optional(),
+  visibility: z.enum(["private", "team"]).optional(),
+  shareSalary: z.boolean().optional(),
+  shareNotes: z.boolean().optional(),
 })
 
 export const activitySchema = z.object({
@@ -59,6 +62,9 @@ export const applicationUpdateSchema = z.object({
   offerCurrency: optionalStr,
   offerBenefits: optionalStr,
   offerRemote: optionalStr,
+  visibility: z.enum(["private", "team"]).optional(),
+  shareSalary: z.boolean().optional(),
+  shareNotes: z.boolean().optional(),
   archived: z.boolean().optional(),
   activity: activitySchema.optional(),
 })

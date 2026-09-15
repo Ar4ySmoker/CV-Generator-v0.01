@@ -41,6 +41,9 @@ export interface ApplicationDoc {
   offerCurrency?: string
   offerBenefits?: string
   offerRemote?: string
+  visibility: "private" | "team"
+  shareSalary: boolean
+  shareNotes: boolean
   archived: boolean
   createdAt: Date
   updatedAt: Date
@@ -86,6 +89,9 @@ const ApplicationSchema = new Schema<ApplicationDoc>(
     offerCurrency: { type: String },
     offerBenefits: { type: String },
     offerRemote: { type: String },
+    visibility: { type: String, enum: ["private", "team"], default: "private" },
+    shareSalary: { type: Boolean, default: false },
+    shareNotes: { type: Boolean, default: false },
     archived: { type: Boolean, default: false },
   },
   { timestamps: true }

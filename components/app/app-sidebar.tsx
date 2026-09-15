@@ -14,6 +14,7 @@ import {
   LogOut,
   UserRound,
   Users,
+  UsersRound,
   type LucideIcon,
 } from "lucide-react"
 
@@ -42,6 +43,7 @@ const NAV: NavItem[] = [
   { title: "Дашборд", href: "/dashboard", icon: LayoutDashboard },
   { title: "Отклики", href: "/applications", icon: Briefcase },
   { title: "Оферы", href: "/offers", icon: Handshake },
+  { title: "Команда", href: "/teams", icon: UsersRound },
 ]
 
 const PEOPLE: NavItem[] = [

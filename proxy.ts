@@ -10,6 +10,7 @@ export const config = {
     "/applications/:path*",
     "/offers/:path*",
     "/contacts/:path*",
+    "/teams/:path*",
     "/settings/:path*",
   ],
 }

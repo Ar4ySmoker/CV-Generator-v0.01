@@ -6,6 +6,7 @@ import { getUserId } from "@/lib/auth"
 import { connectDb } from "@/lib/db"
 import { Application } from "@/lib/models/application"
 import { PipelineStage } from "@/lib/models/pipeline-stage"
+import { addTeamActivity, findTeamOfMember } from "@/lib/team"
 
 function cleanOptional<T>(v: T | null | undefined): T | undefined {
   return v == null ? undefined : v
@@ -65,6 +66,9 @@ export async function PATCH(
     return NextResponse.json({ error: "Отклик не найден" }, { status: 404 })
   }
 
+  const prevVisibility = app.visibility
+  const prevStageId = app.stageId
+
   if (data.company !== undefined) app.company = data.company
   if (data.role !== undefined) app.role = data.role
   if (data.companyDomain !== undefined) app.companyDomain = cleanOptional(data.companyDomain)
@@ -86,6 +90,9 @@ export async function PATCH(
   if (data.offerCurrency !== undefined) app.offerCurrency = cleanOptional(data.offerCurrency)
   if (data.offerBenefits !== undefined) app.offerBenefits = cleanOptional(data.offerBenefits)
   if (data.offerRemote !== undefined) app.offerRemote = cleanOptional(data.offerRemote)
+  if (data.visibility !== undefined) app.visibility = data.visibility
+  if (data.shareSalary !== undefined) app.shareSalary = data.shareSalary
+  if (data.shareNotes !== undefined) app.shareNotes = data.shareNotes
   if (data.archived !== undefined) app.archived = data.archived
 
   if (data.activity) {
@@ -100,8 +107,11 @@ export async function PATCH(
     }
   }
 
+  let changedStageName: string | null = null
+
   if (data.stageId !== undefined && data.stageId !== app.stageId) {
     const stage = await PipelineStage.findById(data.stageId)
+    changedStageName = stage?.name ?? null
     app.timeline.push({
       at: new Date(),
       type: "stage_change",
@@ -115,6 +125,37 @@ export async function PATCH(
   }
 
   await app.save()
+
+  const team = await findTeamOfMember(userId)
+  if (team) {
+    const teamId = team._id.toString()
+    if (data.visibility === "team" && prevVisibility !== "team") {
+      await addTeamActivity({
+        teamId,
+        type: "shared",
+        actorId: userId,
+        applicationId: app._id.toString(),
+        company: app.company,
+        role: app.role,
+      })
+    }
+    if (
+      data.stageId !== undefined &&
+      data.stageId !== prevStageId &&
+      app.visibility === "team" &&
+      changedStageName
+    ) {
+      await addTeamActivity({
+        teamId,
+        type: "stage",
+        actorId: userId,
+        applicationId: app._id.toString(),
+        company: app.company,
+        role: app.role,
+        stageName: changedStageName,
+      })
+    }
+  }
 
   return NextResponse.json({ application: serializeApplication(app) })
 }

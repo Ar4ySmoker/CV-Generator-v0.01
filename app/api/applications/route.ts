@@ -76,6 +76,9 @@ export async function POST(request: Request) {
     vacancyText: cleanOptional(data.vacancyText),
     notes: cleanOptional(data.notes),
     contactIds: data.contactIds ?? [],
+    visibility: data.visibility ?? "private",
+    shareSalary: data.shareSalary ?? false,
+    shareNotes: data.shareNotes ?? false,
     stageId,
     timeline: [
       {

@@ -32,6 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
+import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 
@@ -82,15 +83,17 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
+  const [hasTeam, setHasTeam] = useState(false)
 
   const load = useCallback(async () => {
-    const [appRes, stagesRes, contactsRes, interviewsRes, profilesRes] =
+    const [appRes, stagesRes, contactsRes, interviewsRes, profilesRes, teamRes] =
       await Promise.all([
         fetch(`/api/applications/${applicationId}`),
         fetch("/api/stages"),
         fetch("/api/contacts"),
         fetch(`/api/interviews?applicationId=${applicationId}`),
         fetch("/api/profiles"),
+        fetch("/api/teams"),
       ])
     if (!appRes.ok) {
       setError("Отклик не найден")
@@ -114,6 +117,10 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
     if (profilesRes.ok) {
       const d = (await profilesRes.json()) as { profiles: ProfileItem[] }
       setProfiles(d.profiles)
+    }
+    if (teamRes.ok) {
+      const d = (await teamRes.json()) as { team: { id: string } | null }
+      setHasTeam(Boolean(d.team))
     }
     setLoading(false)
   }, [applicationId])
@@ -314,6 +321,7 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
           <TabsTrigger value="events">События</TabsTrigger>
           <TabsTrigger value="notes">Заметки</TabsTrigger>
           <TabsTrigger value="cv">CV</TabsTrigger>
+          <TabsTrigger value="team">Команда</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="pt-4">
@@ -632,6 +640,71 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
                   />
                 </div>
               ) : null}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="team" className="pt-4">
+          <Card>
+            <CardContent className="flex flex-col gap-4 pt-6">
+              {!hasTeam ? (
+                <div className="flex flex-col gap-2">
+                  <p className="text-sm text-muted-foreground">
+                    У вас пока нет команды. Создайте её, чтобы делиться этим
+                    откликом и опытом собеседований с друзьями.
+                  </p>
+                  <Button asChild variant="outline" size="sm" className="w-fit">
+                    <Link href="/teams">Создать команду</Link>
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex flex-col gap-0.5">
+                      <Label>Поделиться с командой</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Отклик появится в доске вакансий команды.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={app.visibility === "team"}
+                      onCheckedChange={(v) =>
+                        patch({ visibility: v ? "team" : "private" })
+                      }
+                    />
+                  </div>
+
+                  {app.visibility === "team" ? (
+                    <>
+                      <Separator />
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex flex-col gap-0.5">
+                          <Label>Показывать зарплату</Label>
+                          <p className="text-xs text-muted-foreground">
+                            Вилка и офер будут видны команде.
+                          </p>
+                        </div>
+                        <Switch
+                          checked={app.shareSalary}
+                          onCheckedChange={(v) => patch({ shareSalary: v })}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex flex-col gap-0.5">
+                          <Label>Показывать заметки</Label>
+                          <p className="text-xs text-muted-foreground">
+                            Ваши личные заметки будут видны команде.
+                          </p>
+                        </div>
+                        <Switch
+                          checked={app.shareNotes}
+                          onCheckedChange={(v) => patch({ shareNotes: v })}
+                        />
+                      </div>
+                    </>
+                  ) : null}
+                </>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

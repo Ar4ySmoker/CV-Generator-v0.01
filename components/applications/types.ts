@@ -47,6 +47,9 @@ export interface ApplicationItem {
   offerCurrency: string | null
   offerBenefits: string | null
   offerRemote: string | null
+  visibility: "private" | "team"
+  shareSalary: boolean
+  shareNotes: boolean
   archived: boolean
   stageEnteredAt: string | null
   createdAt: string
