@@ -204,7 +204,12 @@ export function NotificationsSettings() {
             ) : push.status === "unsupported" ? (
               <Badge variant="secondary">
                 <BellOff />
-                Не поддерживается
+                Не поддерживается браузером
+              </Badge>
+            ) : push.status === "unconfigured" ? (
+              <Badge variant="secondary">
+                <BellOff />
+                Web-push не настроен
               </Badge>
             ) : (
               <Badge variant="secondary">
@@ -213,6 +218,15 @@ export function NotificationsSettings() {
               </Badge>
             )}
           </div>
+
+          {push.status === "unconfigured" ? (
+            <p className="text-sm text-muted-foreground">
+              Push-уведомления отключены: не заданы VAPID-ключи
+              (`NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`,
+              `VAPID_SUBJECT`). Добавьте их в переменные окружения и
+              передеплойте.
+            </p>
+          ) : null}
 
           <div className="flex flex-wrap gap-2">
             {push.status === "subscribed" ? (
@@ -229,7 +243,12 @@ export function NotificationsSettings() {
                 variant="outline"
                 size="sm"
                 onClick={push.subscribe}
-                disabled={push.busy || push.status === "denied" || push.status === "unsupported"}
+                disabled={
+                  push.busy ||
+                  push.status === "denied" ||
+                  push.status === "unsupported" ||
+                  push.status === "unconfigured"
+                }
               >
                 <BellRing /> Включить в этом браузере
               </Button>
@@ -238,7 +257,10 @@ export function NotificationsSettings() {
               variant="secondary"
               size="sm"
               onClick={sendTest}
-              disabled={sending || push.status !== "subscribed"}
+              disabled={
+                sending ||
+                push.status !== "subscribed"
+              }
             >
               <Send /> {sending ? "Отправляем…" : "Отправить тестовое"}
             </Button>

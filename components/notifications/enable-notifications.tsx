@@ -9,7 +9,12 @@ import { usePushSubscription } from "./use-push"
 export function EnableNotifications() {
   const { status, busy, subscribe, unsubscribe } = usePushSubscription()
 
-  if (status === "loading" || status === "unsupported" || status === "denied") {
+  if (
+    status === "loading" ||
+    status === "unsupported" ||
+    status === "unconfigured" ||
+    status === "denied"
+  ) {
     return null
   }
 

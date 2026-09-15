@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react"
 
 export type PushStatus =
   | "loading"
+  | "unconfigured"
   | "unsupported"
   | "denied"
   | "subscribed"
@@ -25,17 +26,21 @@ export function usePushSubscription() {
   const [busy, setBusy] = useState(false)
 
   const refresh = useCallback(async () => {
+    if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
+      setStatus("unconfigured")
+      return
+    }
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
       setStatus("unsupported")
       return
     }
-    if (Notification.permission === "denied") {
+    if ("Notification" in window && Notification.permission === "denied") {
       setStatus("denied")
       return
     }
     try {
-      const reg = await navigator.serviceWorker.ready
-      const sub = await reg.pushManager.getSubscription()
+      const reg = await navigator.serviceWorker.getRegistration()
+      const sub = reg ? await reg.pushManager.getSubscription() : null
       setStatus(sub ? "subscribed" : "unsubscribed")
     } catch {
       setStatus("unsubscribed")
@@ -49,6 +54,10 @@ export function usePushSubscription() {
   const subscribe = useCallback(async (): Promise<boolean> => {
     const key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
     if (!key) {
+      setStatus("unconfigured")
+      return false
+    }
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
       setStatus("unsupported")
       return false
     }
@@ -82,8 +91,8 @@ export function usePushSubscription() {
   const unsubscribe = useCallback(async () => {
     setBusy(true)
     try {
-      const reg = await navigator.serviceWorker.ready
-      const sub = await reg.pushManager.getSubscription()
+      const reg = await navigator.serviceWorker.getRegistration()
+      const sub = reg ? await reg.pushManager.getSubscription() : null
       if (sub) {
         await sub.unsubscribe()
         await fetch("/api/push/subscribe", {
