@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Columns3, List, Plus, Search } from "lucide-react"
+import { CalendarClock, Clock, Columns3, Plus, Search } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -30,10 +30,15 @@ interface App {
   sentChannel: string | null
   sentTo: string | null
   sentAt: string | null
+  nextEventType: string | null
+  nextEventAt: string | null
+  nextEventChannel: string | null
   offerSalary: number | null
   offerCurrency: string | null
   updatedAt: string
 }
+
+type Mode = "kanban" | "upcoming" | "recent"
 
 function salaryText(a: App): string {
   const cur = a.currency ?? ""
@@ -50,6 +55,30 @@ function sentText(a: App): string | null {
   if (!a.sentAt) return null
   const d = new Date(a.sentAt).toLocaleDateString("ru-RU")
   return a.sentChannel ? `${a.sentChannel} · ${d}` : `Отправлено · ${d}`
+}
+
+function eventText(a: App): string | null {
+  if (!a.nextEventAt) return null
+  const mins = Math.round((new Date(a.nextEventAt).getTime() - Date.now()) / 60000)
+  const rel =
+    mins < 0
+      ? "прошло"
+      : mins < 60
+        ? `через ${mins} мин`
+        : mins < 1440
+          ? `через ${Math.round(mins / 60)} ч`
+          : `через ${Math.round(mins / 1440)} дн`
+  return `${a.nextEventType ?? "Событие"} · ${rel}`
+}
+
+function EventBadge({ app }: { app: App }) {
+  const text = eventText(app)
+  if (!text) return null
+  return (
+    <span className="w-fit rounded-md bg-primary/10 px-1.5 py-0.5 text-xs text-primary">
+      {text}
+    </span>
+  )
 }
 
 function AppCard({
@@ -75,6 +104,7 @@ function AppCard({
     >
       <p className="text-sm font-medium leading-snug">{app.role}</p>
       <p className="text-xs text-muted-foreground">{app.company}</p>
+      <EventBadge app={app} />
       <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
         {app.country ? <span>{app.country}</span> : null}
         {salaryText(app) ? <span>{salaryText(app)}</span> : null}
@@ -87,7 +117,7 @@ function AppCard({
 export function ApplicationsBoard() {
   const [stages, setStages] = useState<Stage[]>([])
   const [apps, setApps] = useState<App[]>([])
-  const [view, setView] = useState<"kanban" | "list">("kanban")
+  const [mode, setMode] = useState<Mode>("kanban")
   const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(true)
   const [draggingId, setDraggingId] = useState<string | null>(null)
@@ -130,9 +160,44 @@ export function ApplicationsBoard() {
     )
   }, [apps, search])
 
+  const sorted = useMemo(() => {
+    const list = [...filtered]
+    if (mode === "upcoming") {
+      return list.sort((a, b) => {
+        const at = a.nextEventAt ? new Date(a.nextEventAt).getTime() : Infinity
+        const bt = b.nextEventAt ? new Date(b.nextEventAt).getTime() : Infinity
+        return at - bt
+      })
+    }
+    if (mode === "recent") {
+      return list.sort(
+        (a, b) =>
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+      )
+    }
+    return list
+  }, [filtered, mode])
+
+  const soon = useMemo(() => {
+    const now = Date.now()
+    const week = 7 * 24 * 3600 * 1000
+    return apps
+      .filter((a) => {
+        if (!a.nextEventAt) return false
+        const t = new Date(a.nextEventAt).getTime()
+        return t >= now && t - now <= week
+      })
+      .sort(
+        (a, b) =>
+          new Date(a.nextEventAt!).getTime() - new Date(b.nextEventAt!).getTime()
+      )
+  }, [apps])
+
   if (loading) {
     return <p className="text-sm text-muted-foreground">Загрузка…</p>
   }
+
+  const list = mode === "kanban" ? filtered : sorted
 
   return (
     <div className="flex flex-col gap-4">
@@ -149,18 +214,25 @@ export function ApplicationsBoard() {
         <div className="flex items-center gap-2">
           <div className="flex rounded-xl border border-border/60 p-1">
             <Button
-              variant={view === "kanban" ? "secondary" : "ghost"}
+              variant={mode === "kanban" ? "secondary" : "ghost"}
               size="sm"
-              onClick={() => setView("kanban")}
+              onClick={() => setMode("kanban")}
             >
-              <Columns3 /> Доска
+              <Columns3 /> Воронка
             </Button>
             <Button
-              variant={view === "list" ? "secondary" : "ghost"}
+              variant={mode === "upcoming" ? "secondary" : "ghost"}
               size="sm"
-              onClick={() => setView("list")}
+              onClick={() => setMode("upcoming")}
             >
-              <List /> Список
+              <CalendarClock /> События
+            </Button>
+            <Button
+              variant={mode === "recent" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setMode("recent")}
+            >
+              <Clock /> Недавние
             </Button>
           </div>
           <Button asChild size="sm">
@@ -171,7 +243,24 @@ export function ApplicationsBoard() {
         </div>
       </div>
 
-      {view === "kanban" ? (
+      {soon.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-muted/30 p-3">
+          <span className="text-xs font-medium text-muted-foreground">
+            Скоро:
+          </span>
+          {soon.map((a) => (
+            <Link
+              key={a.id}
+              href={`/applications/${a.id}`}
+              className="rounded-lg bg-card px-2 py-1 text-xs hover:bg-muted"
+            >
+              {a.role} · {a.company} · {eventText(a)}
+            </Link>
+          ))}
+        </div>
+      ) : null}
+
+      {mode === "kanban" ? (
         <div className="flex gap-3 overflow-x-auto pb-4">
           {stages.map((stage) => {
             const items = filtered.filter((a) => a.stageId === stage.id)
@@ -212,7 +301,7 @@ export function ApplicationsBoard() {
         </div>
       ) : (
         <div className="flex flex-col gap-1">
-          {filtered.map((a) => {
+          {list.map((a) => {
             const stage = stages.find((s) => s.id === a.stageId)
             return (
               <div
@@ -229,6 +318,7 @@ export function ApplicationsBoard() {
                     {a.country ? ` · ${a.country}` : ""}
                   </p>
                 </Link>
+                <EventBadge app={a} />
                 <span className="text-xs text-muted-foreground">
                   {salaryText(a)}
                 </span>

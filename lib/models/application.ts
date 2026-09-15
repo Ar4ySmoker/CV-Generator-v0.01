@@ -27,6 +27,12 @@ export interface ApplicationDoc {
   sentChannel?: string
   sentTo?: string
   sentAt?: Date
+  respondedAt?: Date
+  responseChannel?: string
+  nextEventType?: string
+  nextEventAt?: Date
+  nextEventChannel?: string
+  nextEventNote?: string
   offerSalary?: number
   offerCurrency?: string
   offerBenefits?: string
@@ -66,6 +72,12 @@ const ApplicationSchema = new Schema<ApplicationDoc>(
     sentChannel: { type: String },
     sentTo: { type: String },
     sentAt: { type: Date },
+    respondedAt: { type: Date },
+    responseChannel: { type: String },
+    nextEventType: { type: String },
+    nextEventAt: { type: Date },
+    nextEventChannel: { type: String },
+    nextEventNote: { type: String },
     offerSalary: { type: Number },
     offerCurrency: { type: String },
     offerBenefits: { type: String },

@@ -70,6 +70,7 @@ lib/
   docx.ts                         # сборка DOCX (порт generate.py)
   pipeline.ts                     # дефолтные этапы + ensure/start/list
   profile-import.ts               # импорт profile.yaml (YAML/JSON) → CvFormValues
+  web-push.ts                     # отправка web-push (VAPID)
   utils.ts                        # cn
   models/                         # Mongoose-модели (см. §4)
 proxy.ts                          # защита маршрутов (замена middleware.ts в Next 16)
@@ -89,7 +90,8 @@ docs/                             # ARCHITECTURE.md, ROADMAP.md
 | `profiles` | `userId`, `label`, `data` (CvFormValues, Mixed), `isDefault` |
 | `generatedcvs` | `userId`, `applicationId?`, `profileId?`, `adaptedCv` (AdaptedCv), `inputSnapshot` (CvFormValues), `lang` |
 | `pipelinestages` | `userId`, `name`, `order`, `color`, `type` (`start`/`active`/`terminal`), `terminalResult?` (`rejected`/`no-response`/`accepted`) |
-| `applications` | `userId`, `company`, `role`, `country?`, `salaryMin/Max?`, `currency?`, `sourceType?`, `sourceUrl?`, `vacancyText?`, `cvId?`, `stageId`, `timeline[]`, `notes?`, `contactName?`, `contactEmail?`, `sentChannel?`, `sentTo?`, `sentAt?`, `offerSalary?`, `offerCurrency?`, `offerBenefits?`, `offerRemote?`, `archived` |
+| `applications` | `userId`, `company`, `role`, `country?`, `salaryMin/Max?`, `currency?`, `sourceType?`, `sourceUrl?`, `vacancyText?`, `cvId?`, `stageId`, `timeline[]`, `notes?`, `contactName?`, `contactEmail?`, `sentChannel?`, `sentTo?`, `sentAt?`, `respondedAt?`, `responseChannel?`, `nextEventType?`, `nextEventAt?`, `nextEventChannel?`, `nextEventNote?`, `offerSalary?`, `offerCurrency?`, `offerBenefits?`, `offerRemote?`, `archived` |
+| `pushsubscriptions` | `userId`, `endpoint` (unique), `keys.p256dh`, `keys.auth` |
 
 > **Важно:** в моделях Mongoose нельзя использовать имя поля `model` — конфликтует с
 > встроенным методом документа. В `ApiKey` поле называется `modelName` (наружу — `model`).
@@ -161,6 +163,8 @@ senior-стиля. Ответ — строгий JSON (валидируется 
 | `PUT /api/stages` | да | Полная замена воронки (`{stages:[...]}`), удалённые этапы переносят отклики на «Старт» |
 | `GET/POST /api/applications` | да | Список (`?search=`, `?archived=1`) / создание (авто-этап «Старт») |
 | `GET/PATCH/DELETE /api/applications/:id` | да | Детали / обновление (смена этапа → запись в timeline + авто `sentAt` на «Отправлено») / удаление |
+| `POST/DELETE /api/push/subscribe` | да | Сохранение/удаление подписки web-push (`{endpoint, keys}`) |
+| `GET /api/cron/reminders` | cron | Напоминания за ≤1ч до события (auth: `Bearer CRON_SECRET`) |
 
 Общий паттерн роутов: `const userId = await getUserId()` → 401 при отсутствии;
 `await connectDb()`; zod-валидация; проверка владельца в запросе.
@@ -186,14 +190,23 @@ senior-стиля. Ответ — строгий JSON (валидируется 
 
 ### Трекинг отклика
 1. `/applications/new` → `POST /api/applications` (этап «Старт»).
-2. `/applications` — kanban (drag-and-drop → `PATCH stageId`) или список; на карточке
-   видно канал/дату отправки.
+2. `/applications` — kanban (drag-and-drop → `PATCH stageId`) + сортировка
+   **«Воронка» / «События» (ближайшие) / «Недавние»**, полоса «Скоро» и бейджи
+   предстоящих событий.
 3. `/applications/[id]` — смена этапа (таймлайн), заметки, контакты, офер,
    генерация CV с привязкой (`save:true, applicationId`).
-4. **Фиксация отправки** — блок «Отправка CV»: канал
-   (Email/Telegram/LinkedIn/Messenger/Другое), «кому», «когда» → `PATCH` пишет
-   `sentChannel`/`sentTo`/`sentAt` и двигает на этап «Отправлено».
-5. `/offers` — фильтр этапов «Офер»/«Принято» и сравнение по ЗП.
+4. **Фиксация отправки** — блок «Отправка CV»: канал, «кому», «когда» → пишет
+   `sentChannel`/`sentTo`/`sentAt` и двигает на «Отправлено».
+5. **Ответ и созвон** — «Записать ответ» (`respondedAt`+`responseChannel`, авто-этап
+   «Ответ (HR)») и «Назначить событие» (`nextEventType/At/Channel/Note`, авто-переход
+   на выбранный этап), счётчик «через N дн/ч».
+6. `/offers` — фильтр этапов «Офер»/«Принято» и сравнение по ЗП.
+
+### Уведомления (web-push)
+- Подписка: `POST /api/push/subscribe`, service worker `public/sw.js`, кнопка
+  «Включить уведомления» на дашборде.
+- Напоминания: Vercel Cron (`vercel.json`) → `GET /api/cron/reminders` (auth
+  `CRON_SECRET`) раз в час шлёт push за события, до которых ≤1ч.
 
 ## 7. Как что-то добавить/поменять
 

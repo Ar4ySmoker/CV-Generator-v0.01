@@ -31,6 +31,12 @@ function serializeFull(a: ApplicationDoc) {
     sentChannel: a.sentChannel ?? null,
     sentTo: a.sentTo ?? null,
     sentAt: a.sentAt ?? null,
+    respondedAt: a.respondedAt ?? null,
+    responseChannel: a.responseChannel ?? null,
+    nextEventType: a.nextEventType ?? null,
+    nextEventAt: a.nextEventAt ?? null,
+    nextEventChannel: a.nextEventChannel ?? null,
+    nextEventNote: a.nextEventNote ?? null,
     offerSalary: a.offerSalary ?? null,
     offerCurrency: a.offerCurrency ?? null,
     offerBenefits: a.offerBenefits ?? null,
@@ -109,6 +115,16 @@ export async function PATCH(
   if (data.contactEmail !== undefined) app.contactEmail = cleanOptional(data.contactEmail)
   if (data.sentChannel !== undefined) app.sentChannel = cleanOptional(data.sentChannel)
   if (data.sentTo !== undefined) app.sentTo = cleanOptional(data.sentTo)
+  if (data.respondedAt !== undefined) {
+    app.respondedAt = data.respondedAt ? new Date(data.respondedAt) : undefined
+  }
+  if (data.responseChannel !== undefined) app.responseChannel = cleanOptional(data.responseChannel)
+  if (data.nextEventType !== undefined) app.nextEventType = cleanOptional(data.nextEventType)
+  if (data.nextEventAt !== undefined) {
+    app.nextEventAt = data.nextEventAt ? new Date(data.nextEventAt) : undefined
+  }
+  if (data.nextEventChannel !== undefined) app.nextEventChannel = cleanOptional(data.nextEventChannel)
+  if (data.nextEventNote !== undefined) app.nextEventNote = cleanOptional(data.nextEventNote)
   if (data.archived !== undefined) app.archived = data.archived
   if (data.sentAt !== undefined) {
     app.sentAt = data.sentAt ? new Date(data.sentAt) : undefined

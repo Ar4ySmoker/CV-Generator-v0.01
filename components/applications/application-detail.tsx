@@ -63,6 +63,12 @@ interface FullApp {
   sentChannel: string | null
   sentTo: string | null
   sentAt: string | null
+  respondedAt: string | null
+  responseChannel: string | null
+  nextEventType: string | null
+  nextEventAt: string | null
+  nextEventChannel: string | null
+  nextEventNote: string | null
   offerSalary: number | null
   offerCurrency: string | null
   offerBenefits: string | null
@@ -78,11 +84,29 @@ interface ProfileItem {
 
 const SEND_CHANNELS = ["Email", "Telegram", "LinkedIn", "Messenger"]
 
+const RESPONSE_CHANNELS = [
+  "Email",
+  "Telegram",
+  "LinkedIn",
+  "Звонок",
+  "Мессенджер",
+]
+
 function toLocalInputValue(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0")
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
     d.getHours()
   )}:${pad(d.getMinutes())}`
+}
+
+function formatRelative(iso: string): string {
+  const diff = new Date(iso).getTime() - Date.now()
+  const mins = Math.round(diff / 60000)
+  if (mins < 0) return "прошло"
+  if (mins < 60) return `через ${mins} мин`
+  const hours = Math.round(mins / 60)
+  if (hours < 24) return `через ${hours} ч`
+  return `через ${Math.round(hours / 24)} дн`
 }
 
 export function ApplicationDetail({ applicationId }: { applicationId: string }) {
@@ -98,6 +122,12 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
   const [customChannel, setCustomChannel] = useState("")
   const [sendTo, setSendTo] = useState("")
   const [sendAt, setSendAt] = useState("")
+  const [responseChannel, setResponseChannel] = useState("")
+  const [responseAt, setResponseAt] = useState("")
+  const [eventStageId, setEventStageId] = useState("")
+  const [eventAt, setEventAt] = useState("")
+  const [eventChannel, setEventChannel] = useState("")
+  const [eventNote, setEventNote] = useState("")
 
   const load = useCallback(async () => {
     const [appRes, stagesRes, profilesRes] = await Promise.all([
@@ -123,6 +153,19 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
         ? toLocalInputValue(new Date(appData.application.sentAt))
         : toLocalInputValue(new Date())
     )
+    setResponseChannel(appData.application.responseChannel ?? "")
+    setResponseAt(
+      appData.application.respondedAt
+        ? toLocalInputValue(new Date(appData.application.respondedAt))
+        : toLocalInputValue(new Date())
+    )
+    setEventAt(
+      appData.application.nextEventAt
+        ? toLocalInputValue(new Date(appData.application.nextEventAt))
+        : ""
+    )
+    setEventChannel(appData.application.nextEventChannel ?? "")
+    setEventNote(appData.application.nextEventNote ?? "")
 
     if (stagesRes.ok) {
       const d = (await stagesRes.json()) as { stages: Stage[] }
@@ -179,6 +222,44 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
       sentAt: sendAt ? new Date(sendAt).toISOString() : new Date().toISOString(),
       ...(sentStage ? { stageId: sentStage.id } : {}),
     })
+  }
+
+  async function recordResponse() {
+    const respStage = stages.find((s) => s.name === "Ответ (HR)")
+    await patch({
+      respondedAt: responseAt
+        ? new Date(responseAt).toISOString()
+        : new Date().toISOString(),
+      responseChannel: responseChannel || null,
+      ...(respStage ? { stageId: respStage.id } : {}),
+    })
+  }
+
+  async function scheduleEvent() {
+    const stage = stages.find((s) => s.id === eventStageId)
+    if (!stage) {
+      setError("Выберите этап события")
+      return
+    }
+    await patch({
+      nextEventType: stage.name,
+      nextEventAt: eventAt ? new Date(eventAt).toISOString() : null,
+      nextEventChannel: eventChannel || null,
+      nextEventNote: eventNote || null,
+      stageId: stage.id,
+    })
+  }
+
+  async function clearEvent() {
+    await patch({
+      nextEventType: null,
+      nextEventAt: null,
+      nextEventChannel: null,
+      nextEventNote: null,
+    })
+    setEventAt("")
+    setEventChannel("")
+    setEventNote("")
   }
 
   if (loading) {
@@ -365,6 +446,108 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
           >
             <Send /> Зафиксировать отправку
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Ответ и созвон</CardTitle>
+          {app.nextEventAt ? (
+            <p className="text-xs text-muted-foreground">
+              {app.nextEventType ?? "Событие"}
+              {app.nextEventChannel ? ` · ${app.nextEventChannel}` : ""} ·{" "}
+              {formatRelative(app.nextEventAt)}
+            </p>
+          ) : null}
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="flex flex-col gap-1.5">
+              <Label>Ответ — откуда</Label>
+              <Select value={responseChannel} onValueChange={setResponseChannel}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Канал" />
+                </SelectTrigger>
+                <SelectContent>
+                  {RESPONSE_CHANNELS.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="Другое">Другое…</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Когда ответил</Label>
+              <Input
+                type="datetime-local"
+                value={responseAt}
+                onChange={(e) => setResponseAt(e.target.value)}
+              />
+            </div>
+            <div className="flex items-end">
+              <Button variant="secondary" onClick={recordResponse} disabled={saving}>
+                <Send /> Записать ответ
+              </Button>
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <Label>Назначено (этап)</Label>
+              <Select value={eventStageId} onValueChange={setEventStageId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Собеседование, тестовое…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {stages
+                    .filter((s) => s.type === "active")
+                    .map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Когда</Label>
+              <Input
+                type="datetime-local"
+                value={eventAt}
+                onChange={(e) => setEventAt(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Канал созвона</Label>
+              <Input
+                value={eventChannel}
+                onChange={(e) => setEventChannel(e.target.value)}
+                placeholder="Google Meet / Zoom / телефон…"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Заметка / ссылка</Label>
+              <Input
+                value={eventNote}
+                onChange={(e) => setEventNote(e.target.value)}
+                placeholder="Ссылка на встречу"
+              />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={scheduleEvent} disabled={saving}>
+              Назначить
+            </Button>
+            {app.nextEventAt ? (
+              <Button variant="ghost" onClick={clearEvent} disabled={saving}>
+                Завершено
+              </Button>
+            ) : null}
+          </div>
         </CardContent>
       </Card>
 
