@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 import { salaryRange } from "@/lib/format"
 
-import { FeedbackForm, KIND_LABELS, OutcomeBadge } from "./company-shared"
+import { FeedbackForm, FeedbackList, OutcomeBadge } from "./company-shared"
 import type { Vacancy } from "./types"
 
 function VacancyCard({
@@ -85,29 +85,13 @@ function VacancyCard({
         </div>
 
         {vacancy.feedback.length > 0 ? (
-          <div className="flex flex-col gap-2">
-            {vacancy.feedback.map((f) => (
-              <div
-                key={f.id}
-                className="flex flex-col gap-1 rounded-lg bg-muted/30 px-3 py-2"
-              >
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-medium">
-                    {KIND_LABELS[f.kind]}
-                  </span>
-                  {f.rating ? (
-                    <span className="text-xs text-muted-foreground">
-                      Сложность {f.rating}/5
-                    </span>
-                  ) : null}
-                  <span className="ml-auto text-xs text-muted-foreground">
-                    {f.authorName}
-                  </span>
-                </div>
-                <p className="text-sm whitespace-pre-wrap">{f.text}</p>
-              </div>
-            ))}
-          </div>
+          <FeedbackList
+            teamId={teamId}
+            companyKey={vacancy.companyKey}
+            company={vacancy.company}
+            feedback={vacancy.feedback}
+            onChanged={onChanged}
+          />
         ) : null}
 
         <div className="flex items-center gap-2">
@@ -132,7 +116,7 @@ function VacancyCard({
             teamId={teamId}
             companyKey={vacancy.companyKey}
             company={vacancy.company}
-            onAdded={onChanged}
+            onSaved={onChanged}
           />
         ) : null}
       </CardContent>

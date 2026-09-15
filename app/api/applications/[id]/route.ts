@@ -6,7 +6,7 @@ import { getUserId } from "@/lib/auth"
 import { connectDb } from "@/lib/db"
 import { Application } from "@/lib/models/application"
 import { PipelineStage } from "@/lib/models/pipeline-stage"
-import { addActivityToUserTeams } from "@/lib/team"
+import { addActivityToUserTeams, shareVacancyToUserTeams } from "@/lib/team"
 
 function cleanOptional<T>(v: T | null | undefined): T | undefined {
   return v == null ? undefined : v
@@ -133,6 +133,16 @@ export async function PATCH(
       applicationId: app._id.toString(),
       company: app.company,
       role: app.role,
+    })
+    await shareVacancyToUserTeams(userId, {
+      company: app.company,
+      role: app.role,
+      country: app.country,
+      salaryMin: app.salaryMin,
+      salaryMax: app.salaryMax,
+      currency: app.currency,
+      sourceUrl: app.sourceUrl,
+      vacancyText: app.vacancyText,
     })
   }
   if (

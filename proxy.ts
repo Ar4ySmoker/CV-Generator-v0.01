@@ -7,6 +7,7 @@ export default NextAuth(authConfig).auth
 export const config = {
   matcher: [
     "/dashboard/:path*",
+    "/vacancies/:path*",
     "/applications/:path*",
     "/offers/:path*",
     "/contacts/:path*",

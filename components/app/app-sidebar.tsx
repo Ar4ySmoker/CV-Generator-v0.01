@@ -6,6 +6,7 @@ import { signOut, useSession } from "next-auth/react"
 import {
   Bell,
   Briefcase,
+  BriefcaseBusiness,
   FileText,
   GitBranch,
   Handshake,
@@ -41,6 +42,7 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { title: "Дашборд", href: "/dashboard", icon: LayoutDashboard },
+  { title: "Вакансии", href: "/vacancies", icon: BriefcaseBusiness },
   { title: "Отклики", href: "/applications", icon: Briefcase },
   { title: "Оферы", href: "/offers", icon: Handshake },
   { title: "Команды", href: "/teams", icon: UsersRound },

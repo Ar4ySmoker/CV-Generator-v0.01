@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useSession } from "next-auth/react"
-import { ArrowLeft, Building2, ExternalLink, Send } from "lucide-react"
+import { ArrowLeft, Building2, ExternalLink, Pencil, Send, Trash } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,7 +19,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 
-import { FeedbackForm, KIND_LABELS, OutcomeBadge } from "./company-shared"
+import { FeedbackForm, FeedbackList, OutcomeBadge } from "./company-shared"
 import type { CompanyApplicant, CompanyDetail, TeamMessageItem } from "./types"
 
 const TIMELINE_LABELS: Record<string, string> = {
@@ -97,6 +97,8 @@ export function CompanyDetail({
   const [sending, setSending] = useState(false)
   const [selected, setSelected] = useState<CompanyApplicant | null>(null)
   const [showFeedback, setShowFeedback] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editText, setEditText] = useState("")
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const load = useCallback(async () => {
@@ -150,6 +152,34 @@ export function CompanyDetail({
     } finally {
       setSending(false)
     }
+  }
+
+  function startEdit(m: TeamMessageItem) {
+    setEditingId(m.id)
+    setEditText(m.text)
+  }
+
+  async function saveEdit() {
+    if (!editingId || !editText.trim()) return
+    await fetch(
+      `/api/teams/${teamId}/companies/${encodeURIComponent(companyKey)}/messages/${editingId}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: editText.trim() }),
+      }
+    )
+    setEditingId(null)
+    setEditText("")
+    await loadMessages()
+  }
+
+  async function deleteMessage(messageId: string) {
+    await fetch(
+      `/api/teams/${teamId}/companies/${encodeURIComponent(companyKey)}/messages/${messageId}`,
+      { method: "DELETE" }
+    )
+    await loadMessages()
   }
 
   if (loading) {
@@ -299,31 +329,20 @@ export function CompanyDetail({
             teamId={teamId}
             companyKey={data.companyKey}
             company={data.company}
-            onAdded={() => {
+            onSaved={() => {
               setShowFeedback(false)
               load()
             }}
           />
         ) : null}
         {data.feedback.length > 0 ? (
-          <div className="flex flex-col gap-2">
-            {data.feedback.map((f) => (
-              <div key={f.id} className="flex flex-col gap-1 rounded-lg bg-muted/30 px-3 py-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-medium">{KIND_LABELS[f.kind]}</span>
-                  {f.rating ? (
-                    <span className="text-xs text-muted-foreground">
-                      Сложность {f.rating}/5
-                    </span>
-                  ) : null}
-                  <span className="ml-auto text-xs text-muted-foreground">
-                    {f.authorName}
-                  </span>
-                </div>
-                <p className="text-sm whitespace-pre-wrap">{f.text}</p>
-              </div>
-            ))}
-          </div>
+          <FeedbackList
+            teamId={teamId}
+            companyKey={data.companyKey}
+            company={data.company}
+            feedback={data.feedback}
+            onChanged={load}
+          />
         ) : (
           <p className="text-sm text-muted-foreground">Отзывов пока нет.</p>
         )}
@@ -349,18 +368,66 @@ export function CompanyDetail({
                         m.authorId === myId ? "items-end" : "items-start"
                       }`}
                     >
-                      <span className="text-xs text-muted-foreground">
-                        {m.authorName} · {timeLabel(m.createdAt)}
+                      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        {m.authorId === myId && editingId === m.id ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={saveEdit}
+                              className="text-primary hover:underline"
+                            >
+                              Сохранить
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingId(null)}
+                              className="hover:underline"
+                            >
+                              Отмена
+                            </button>
+                          </>
+                        ) : m.authorId === myId ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => startEdit(m)}
+                              className="hover:text-foreground"
+                              title="Редактировать"
+                            >
+                              <Pencil className="size-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => deleteMessage(m.id)}
+                              className="hover:text-destructive"
+                              title="Удалить"
+                            >
+                              <Trash className="size-3" />
+                            </button>
+                          </>
+                        ) : null}
+                        <span>
+                          {m.authorName} · {timeLabel(m.createdAt)}
+                        </span>
                       </span>
-                      <div
-                        className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
-                          m.authorId === myId
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted"
-                        }`}
-                      >
-                        {m.text}
-                      </div>
+                      {editingId === m.id ? (
+                        <Input
+                          value={editText}
+                          onChange={(e) => setEditText(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && saveEdit()}
+                          className="max-w-[85%]"
+                        />
+                      ) : (
+                        <div
+                          className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
+                            m.authorId === myId
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted"
+                          }`}
+                        >
+                          {m.text}
+                        </div>
+                      )}
                     </div>
                   ))
                 )}

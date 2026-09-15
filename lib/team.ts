@@ -5,6 +5,7 @@ import { PushSubscription } from "./models/push-subscription"
 import { Team, type TeamDoc } from "./models/team"
 import { TeamMembership, type TeamRole } from "./models/team-membership"
 import { TeamActivity, type TeamActivityType } from "./models/team-activity"
+import { Vacancy } from "./models/vacancy"
 import { sendPush } from "./web-push"
 
 export type { TeamRole }
@@ -118,5 +119,60 @@ export async function notifyTeamMembers(
         await PushSubscription.deleteOne({ _id: s._id })
       }
     }
+  }
+}
+
+export async function upsertSharedVacancy(input: {
+  userId: string
+  teamId: string
+  company: string
+  role: string
+  country?: string
+  salaryMin?: number
+  salaryMax?: number
+  currency?: string
+  sourceUrl?: string
+  vacancyText?: string
+}): Promise<void> {
+  const existing = await Vacancy.findOne({
+    source: "shared",
+    sharedById: input.userId,
+    teamId: input.teamId,
+    company: input.company,
+    role: input.role,
+  })
+  if (existing) return
+  await Vacancy.create({
+    company: input.company,
+    role: input.role,
+    country: input.country,
+    salaryMin: input.salaryMin,
+    salaryMax: input.salaryMax,
+    currency: input.currency,
+    sourceUrl: input.sourceUrl,
+    description: input.vacancyText,
+    source: "shared",
+    teamId: input.teamId,
+    sharedById: input.userId,
+    createdById: input.userId,
+  })
+}
+
+export async function shareVacancyToUserTeams(
+  userId: string,
+  app: {
+    company: string
+    role: string
+    country?: string
+    salaryMin?: number
+    salaryMax?: number
+    currency?: string
+    sourceUrl?: string
+    vacancyText?: string
+  }
+): Promise<void> {
+  const memberships = await TeamMembership.find({ userId, status: "active" })
+  for (const m of memberships) {
+    await upsertSharedVacancy({ userId, teamId: m.teamId, ...app })
   }
 }
