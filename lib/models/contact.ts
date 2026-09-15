@@ -6,6 +6,7 @@ export interface ContactDoc {
   name: string
   email?: string
   phone?: string
+  telegram?: string
   linkedin?: string
   company?: string
   role?: string
@@ -20,6 +21,7 @@ const ContactSchema = new Schema<ContactDoc>(
     name: { type: String, required: true },
     email: { type: String },
     phone: { type: String },
+    telegram: { type: String },
     linkedin: { type: String },
     company: { type: String },
     role: { type: String },

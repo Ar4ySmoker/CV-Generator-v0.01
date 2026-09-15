@@ -12,6 +12,7 @@ export interface InterviewDoc {
   channel?: string
   note?: string
   status: InterviewStatus
+  reminderSentAt?: Date
   createdAt: Date
   updatedAt: Date
 }
@@ -33,6 +34,7 @@ const InterviewSchema = new Schema<InterviewDoc>(
       enum: ["scheduled", "done", "cancelled"],
       default: "scheduled",
     },
+    reminderSentAt: { type: Date },
   },
   { timestamps: true }
 )

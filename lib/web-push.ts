@@ -22,14 +22,16 @@ function ensureConfigured(): void {
 export async function sendPush(
   subscription: { endpoint: string; keys: { p256dh: string; auth: string } },
   payload: Record<string, unknown>
-): Promise<void> {
+): Promise<{ ok: boolean; invalid?: boolean }> {
   if (!isWebPushConfigured()) {
-    return
+    return { ok: false }
   }
   ensureConfigured()
   try {
     await webpush.sendNotification(subscription, JSON.stringify(payload))
-  } catch {
-    // подписка может быть невалидной — игнорируем (удалится при следующей синхронизации)
+    return { ok: true }
+  } catch (err) {
+    const status = (err as { statusCode?: number } | null)?.statusCode
+    return { ok: false, invalid: status === 404 || status === 410 }
   }
 }

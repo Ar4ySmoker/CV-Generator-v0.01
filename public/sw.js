@@ -1,5 +1,5 @@
 self.addEventListener("push", (event) => {
-  let data: { title?: string; body?: string; url?: string } = {}
+  let data = {}
   try {
     data = event.data ? event.data.json() : {}
   } catch {
@@ -20,12 +20,16 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close()
   const url = event.notification.data?.url || "/applications"
+
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
       for (const client of list) {
         if ("focus" in client) {
-          client.focus()
-          return
+          return client.focus().then(() => {
+            if ("navigate" in client) {
+              return client.navigate(url)
+            }
+          })
         }
       }
       if (self.clients.openWindow) {

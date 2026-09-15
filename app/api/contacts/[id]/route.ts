@@ -15,6 +15,7 @@ function serializeContact(c: {
   name: string
   email?: string
   phone?: string
+  telegram?: string
   linkedin?: string
   company?: string
   role?: string
@@ -27,6 +28,7 @@ function serializeContact(c: {
     name: c.name,
     email: c.email ?? null,
     phone: c.phone ?? null,
+    telegram: c.telegram ?? null,
     linkedin: c.linkedin ?? null,
     company: c.company ?? null,
     role: c.role ?? null,
@@ -73,6 +75,7 @@ export async function PATCH(
   if (data.name !== undefined) contact.name = data.name
   if (data.email !== undefined) contact.email = cleanOptional(data.email)
   if (data.phone !== undefined) contact.phone = cleanOptional(data.phone)
+  if (data.telegram !== undefined) contact.telegram = cleanOptional(data.telegram)
   if (data.linkedin !== undefined) contact.linkedin = cleanOptional(data.linkedin)
   if (data.company !== undefined) contact.company = cleanOptional(data.company)
   if (data.role !== undefined) contact.role = cleanOptional(data.role)

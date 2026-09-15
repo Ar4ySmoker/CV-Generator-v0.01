@@ -37,3 +37,18 @@ export function salaryRange(
   }
   return ""
 }
+
+export function telegramUrl(v: string): string {
+  const t = v.trim().replace(/^@/, "")
+  if (/^https?:\/\//i.test(t)) return t
+  return `https://t.me/${t}`
+}
+
+export function phoneHref(v: string): string {
+  return `tel:${v.replace(/[^\d+]/g, "")}`
+}
+
+export function linkedinUrl(v: string): string {
+  if (/^https?:\/\//i.test(v)) return v
+  return `https://${v.replace(/^\/+/, "")}`
+}

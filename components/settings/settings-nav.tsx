@@ -9,12 +9,13 @@ const LINKS = [
   { href: "/settings/keys", label: "API-ключи" },
   { href: "/settings/profile", label: "Профили" },
   { href: "/settings/pipeline", label: "Воронка" },
+  { href: "/settings/notifications", label: "Уведомления" },
 ]
 
 export function SettingsNav() {
   const pathname = usePathname()
   return (
-    <nav className="flex gap-1 rounded-xl border border-border/60 p-1">
+    <nav className="flex flex-wrap gap-1 rounded-xl border border-border/60 p-1">
       {LINKS.map((l) => (
         <Link
           key={l.href}

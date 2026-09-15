@@ -87,6 +87,7 @@ export interface ContactItem {
   name: string
   email: string | null
   phone: string | null
+  telegram: string | null
   linkedin: string | null
   company: string | null
   role: string | null

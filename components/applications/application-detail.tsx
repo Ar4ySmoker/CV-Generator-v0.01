@@ -155,6 +155,7 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
     name: string
     email?: string
     phone?: string
+    telegram?: string
     linkedin?: string
     company?: string
     role?: string
@@ -306,7 +307,7 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
       </Card>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="max-w-full justify-start overflow-x-auto">
+        <TabsList className="max-w-full justify-start overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <TabsTrigger value="overview">Обзор</TabsTrigger>
           <TabsTrigger value="timeline">Таймлайн</TabsTrigger>
           <TabsTrigger value="contacts">Контакты</TabsTrigger>

@@ -15,6 +15,7 @@ function serializeContact(c: {
   name: string
   email?: string
   phone?: string
+  telegram?: string
   linkedin?: string
   company?: string
   role?: string
@@ -27,6 +28,7 @@ function serializeContact(c: {
     name: c.name,
     email: c.email ?? null,
     phone: c.phone ?? null,
+    telegram: c.telegram ?? null,
     linkedin: c.linkedin ?? null,
     company: c.company ?? null,
     role: c.role ?? null,
@@ -91,6 +93,7 @@ export async function POST(request: Request) {
     name: data.name,
     email: cleanOptional(data.email),
     phone: cleanOptional(data.phone),
+    telegram: cleanOptional(data.telegram),
     linkedin: cleanOptional(data.linkedin),
     company: cleanOptional(data.company),
     role: cleanOptional(data.role),

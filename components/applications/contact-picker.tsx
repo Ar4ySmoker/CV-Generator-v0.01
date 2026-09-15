@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Mail, Plus, X } from "lucide-react"
+import { Mail, Plus, Send, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -19,6 +19,7 @@ import { Separator } from "@/components/ui/separator"
 
 import { CompanyLogo } from "./company-logo"
 import type { ContactItem } from "./types"
+import { telegramUrl } from "@/lib/format"
 
 export function ContactPicker({
   contacts,
@@ -33,6 +34,7 @@ export function ContactPicker({
     name: string
     email?: string
     phone?: string
+    telegram?: string
     linkedin?: string
     company?: string
     role?: string
@@ -44,6 +46,7 @@ export function ContactPicker({
     name: "",
     email: "",
     phone: "",
+    telegram: "",
     linkedin: "",
     company: "",
     role: "",
@@ -64,13 +67,14 @@ export function ContactPicker({
         name: form.name.trim(),
         email: form.email.trim() || undefined,
         phone: form.phone.trim() || undefined,
+        telegram: form.telegram.trim() || undefined,
         linkedin: form.linkedin.trim() || undefined,
         company: form.company.trim() || undefined,
         role: form.role.trim() || undefined,
       })
       if (contact) {
         onToggle(contact.id)
-        setForm({ name: "", email: "", phone: "", linkedin: "", company: "", role: "" })
+        setForm({ name: "", email: "", phone: "", telegram: "", linkedin: "", company: "", role: "" })
       }
     } finally {
       setCreating(false)
@@ -103,6 +107,16 @@ export function ContactPicker({
                   className="text-muted-foreground hover:text-foreground"
                 >
                   <Mail className="size-4" />
+                </a>
+              ) : null}
+              {c.telegram ? (
+                <a
+                  href={telegramUrl(c.telegram)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <Send className="size-4" />
                 </a>
               ) : null}
               <Button
@@ -185,6 +199,14 @@ export function ContactPicker({
                 <Input
                   value={form.phone}
                   onChange={(e) => set("phone", e.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label>Telegram</Label>
+                <Input
+                  value={form.telegram}
+                  onChange={(e) => set("telegram", e.target.value)}
+                  placeholder="@username или ссылка"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
