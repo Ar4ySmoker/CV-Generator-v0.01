@@ -44,7 +44,19 @@ export async function fetchChannelPosts(
   const posts: TelegramPost[] = []
   $(".tgme_widget_message").each((_, el) => {
     const $el = $(el)
-    const text = $el.find(".tgme_widget_message_text").text().trim()
+    const html = $el.find(".tgme_widget_message_text").html() ?? ""
+    const text = html
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/p>|<\/div>/gi, "\n")
+      .replace(/<[^>]+>/g, "")
+      .replace(/&nbsp;/gi, " ")
+      .replace(/&amp;/gi, "&")
+      .replace(/&lt;/gi, "<")
+      .replace(/&gt;/gi, ">")
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;|&#x27;/gi, "'")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
     if (!text) return
     const link = $el.find("a.tgme_widget_message_date")
     const href = link.attr("href") ?? ""

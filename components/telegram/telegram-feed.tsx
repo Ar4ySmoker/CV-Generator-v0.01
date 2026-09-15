@@ -42,21 +42,36 @@ function timeLabel(iso: string | null): string {
   return d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" })
 }
 
+const LINK_PATTERN =
+  /(https?:\/\/[^\s]+|www\.[^\s]+|t\.me\/[^\s]+|[\w-]+\.(?:ru|com|app|io|org|net|dev|co|me|site|pro)(?:\/[^\s]*)?)/g
+
+const IS_LINK =
+  /^(https?:\/\/|www\.|t\.me\/|[\w-]+\.(?:ru|com|app|io|org|net|dev|co|me|site|pro))/
+
+function cleanUrl(raw: string): string {
+  return raw.replace(/[.,;:!?)\]]+$/, "")
+}
+
+function toHref(raw: string): string {
+  const cleaned = cleanUrl(raw)
+  return /^https?:\/\//.test(cleaned) ? cleaned : `https://${cleaned}`
+}
+
 function renderLinks(text: string): ReactNode {
-  const parts = text.split(/(https?:\/\/[^\s]+|t\.me\/[^\s]+)/g)
+  const parts = text.split(LINK_PATTERN)
   return parts.map((part, i) => {
-    if (/^(https?:\/\/|t\.me\/)/.test(part)) {
-      const href = part.startsWith("http") ? part : `https://${part}`
+    if (IS_LINK.test(part)) {
+      const cleaned = cleanUrl(part)
       return (
         <a
           key={i}
-          href={href}
+          href={toHref(part)}
           target="_blank"
           rel="noreferrer"
           onClick={(e) => e.stopPropagation()}
           className="text-primary underline decoration-primary/40 underline-offset-2 hover:opacity-80"
         >
-          {part}
+          {cleaned}
         </a>
       )
     }
