@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
 
 import { CvForm } from "@/components/form/cv-form"
@@ -302,12 +303,14 @@ export function ProfilesManager() {
             </div>
             <div className="flex flex-col gap-1.5">
               <Label>Содержимое</Label>
-              <Textarea
-                className="min-h-48 font-mono text-xs"
-                value={importRaw}
-                onChange={(e) => setImportRaw(e.target.value)}
-                placeholder="positioning: …"
-              />
+              <ScrollArea className="h-64 rounded-xl border border-input">
+                <Textarea
+                  className="min-h-64 border-0 font-mono text-xs focus-visible:ring-0"
+                  value={importRaw}
+                  onChange={(e) => setImportRaw(e.target.value)}
+                  placeholder="positioning: …"
+                />
+              </ScrollArea>
             </div>
             <input
               ref={fileRef}
