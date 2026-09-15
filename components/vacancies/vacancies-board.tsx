@@ -35,6 +35,7 @@ import { Textarea } from "@/components/ui/textarea"
 
 import { salaryRange } from "@/lib/format"
 
+import { VacancySearch } from "./vacancy-search"
 import type { VacancyItem, VacancyStatusValue } from "./types"
 
 const STATUS_LABEL: Record<VacancyStatusValue, string> = {
@@ -289,6 +290,7 @@ export function VacanciesBoard() {
   const [status, setStatus] = useState("all")
   const [q, setQ] = useState("")
   const [addOpen, setAddOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
 
   const load = useCallback(async () => {
     const params = new URLSearchParams()
@@ -317,9 +319,14 @@ export function VacanciesBoard() {
             <TabsTrigger value="skipped">Пропустил</TabsTrigger>
           </TabsList>
         </Tabs>
-        <Button size="sm" onClick={() => setAddOpen(true)}>
-          <Plus /> Вакансию
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setSearchOpen(true)}>
+            <Search /> Найти вакансии
+          </Button>
+          <Button size="sm" onClick={() => setAddOpen(true)}>
+            <Plus /> Вакансию
+          </Button>
+        </div>
       </div>
 
       <div className="relative w-full sm:max-w-xs">
@@ -354,6 +361,11 @@ export function VacanciesBoard() {
       )}
 
       <AddVacancyDialog open={addOpen} onOpenChange={setAddOpen} onAdded={load} />
+      <VacancySearch
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        onSaved={load}
+      />
     </div>
   )
 }
