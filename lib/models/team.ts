@@ -3,9 +3,12 @@ import mongoose, { Schema, type Model } from "mongoose"
 export interface TeamDoc {
   _id: mongoose.Types.ObjectId
   name: string
-  ownerId: string
+  description?: string
+  tags?: string[]
+  domain?: string
+  visibility: "public" | "private"
+  joinMode: "open" | "request"
   inviteCode: string
-  memberIds: string[]
   createdAt: Date
   updatedAt: Date
 }
@@ -13,14 +16,25 @@ export interface TeamDoc {
 const TeamSchema = new Schema<TeamDoc>(
   {
     name: { type: String, required: true, trim: true, maxlength: 80 },
-    ownerId: { type: String, required: true, index: true },
+    description: { type: String, trim: true, maxlength: 300 },
+    tags: { type: [String], default: [] },
+    domain: { type: String, trim: true, maxlength: 80 },
+    visibility: {
+      type: String,
+      enum: ["public", "private"],
+      default: "private",
+    },
+    joinMode: {
+      type: String,
+      enum: ["open", "request"],
+      default: "request",
+    },
     inviteCode: { type: String, required: true, unique: true },
-    memberIds: { type: [String], default: [] },
   },
   { timestamps: true }
 )
 
-TeamSchema.index({ memberIds: 1 })
+TeamSchema.index({ visibility: 1, domain: 1 })
 
 export const Team: Model<TeamDoc> =
   (mongoose.models.Team as Model<TeamDoc>) ??

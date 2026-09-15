@@ -119,8 +119,8 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
       setProfiles(d.profiles)
     }
     if (teamRes.ok) {
-      const d = (await teamRes.json()) as { team: { id: string } | null }
-      setHasTeam(Boolean(d.team))
+      const d = (await teamRes.json()) as { teams: unknown[] }
+      setHasTeam(d.teams.length > 0)
     }
     setLoading(false)
   }, [applicationId])

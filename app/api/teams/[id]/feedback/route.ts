@@ -3,9 +3,8 @@ import { z } from "zod"
 
 import { getUserId } from "@/lib/auth"
 import { connectDb } from "@/lib/db"
-import { Team } from "@/lib/models/team"
 import { VacancyFeedback } from "@/lib/models/vacancy-feedback"
-import { addTeamActivity, normalizeCompany, notifyTeamMembers } from "@/lib/team"
+import { addTeamActivity, isTeamMember, normalizeCompany, notifyTeamMembers } from "@/lib/team"
 
 const feedbackSchema = z.object({
   companyKey: z.string().trim().min(1, "Укажите компанию"),
@@ -43,8 +42,7 @@ export async function POST(
 
   await connectDb()
 
-  const team = await Team.findById(id)
-  if (!team || !team.memberIds.includes(userId)) {
+  if (!(await isTeamMember(userId, id))) {
     return NextResponse.json({ error: "Команда не найдена" }, { status: 404 })
   }
 

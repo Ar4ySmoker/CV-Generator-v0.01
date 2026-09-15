@@ -5,17 +5,23 @@ import { getUserId } from "@/lib/auth"
 import { connectDb } from "@/lib/db"
 import { Team } from "@/lib/models/team"
 import { TeamMembership } from "@/lib/models/team-membership"
-import { serializeTeam } from "@/lib/team"
+import { myRoleIn } from "@/lib/team"
 
-const joinSchema = z.object({
-  code: z.string().trim().min(1, "Введите код приглашения"),
+const inviteSchema = z.object({
+  userId: z.string().min(1),
+  role: z.enum(["member", "mentor", "reviewer"]).optional(),
 })
 
-export async function POST(request: Request) {
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   const userId = await getUserId()
   if (!userId) {
     return NextResponse.json({ error: "Требуется авторизация" }, { status: 401 })
   }
+
+  const { id } = await params
 
   let body: unknown
   try {
@@ -24,7 +30,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Некорректное тело запроса" }, { status: 400 })
   }
 
-  const parsed = joinSchema.safeParse(body)
+  const parsed = inviteSchema.safeParse(body)
   if (!parsed.success) {
     return NextResponse.json(
       { error: parsed.error.issues[0]?.message ?? "Некорректные данные" },
@@ -34,16 +40,25 @@ export async function POST(request: Request) {
 
   await connectDb()
 
-  const team = await Team.findOne({ inviteCode: parsed.data.code })
+  const team = await Team.findById(id)
   if (!team) {
-    return NextResponse.json({ error: "Неверный код приглашения" }, { status: 404 })
+    return NextResponse.json({ error: "Команда не найдена" }, { status: 404 })
+  }
+
+  if ((await myRoleIn(userId, id)) !== "owner") {
+    return NextResponse.json({ error: "Нет прав" }, { status: 403 })
   }
 
   await TeamMembership.updateOne(
-    { userId, teamId: team._id.toString() },
-    { $set: { status: "active" }, $setOnInsert: { role: "member" } },
+    { userId: parsed.data.userId, teamId: id },
+    {
+      $set: {
+        role: parsed.data.role ?? "member",
+        status: "active",
+      },
+    },
     { upsert: true }
   )
 
-  return NextResponse.json({ team: serializeTeam(team) })
+  return NextResponse.json({ ok: true })
 }

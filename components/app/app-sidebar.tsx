@@ -43,7 +43,7 @@ const NAV: NavItem[] = [
   { title: "Дашборд", href: "/dashboard", icon: LayoutDashboard },
   { title: "Отклики", href: "/applications", icon: Briefcase },
   { title: "Оферы", href: "/offers", icon: Handshake },
-  { title: "Команда", href: "/teams", icon: UsersRound },
+  { title: "Команды", href: "/teams", icon: UsersRound },
 ]
 
 const PEOPLE: NavItem[] = [

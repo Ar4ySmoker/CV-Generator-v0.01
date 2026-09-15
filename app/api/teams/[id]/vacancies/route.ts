@@ -7,7 +7,7 @@ import { PipelineStage } from "@/lib/models/pipeline-stage"
 import { Team } from "@/lib/models/team"
 import { User } from "@/lib/models/user"
 import { VacancyFeedback } from "@/lib/models/vacancy-feedback"
-import { normalizeCompany } from "@/lib/team"
+import { activeMemberIds, isTeamMember, normalizeCompany } from "@/lib/team"
 
 type Outcome = "in-progress" | "offer" | "accepted" | "rejected" | "no-response"
 
@@ -42,11 +42,11 @@ export async function GET(
   await connectDb()
 
   const team = await Team.findById(id)
-  if (!team || !team.memberIds.includes(userId)) {
+  if (!team || !(await isTeamMember(userId, id))) {
     return NextResponse.json({ error: "Команда не найдена" }, { status: 404 })
   }
 
-  const members = team.memberIds
+  const members = await activeMemberIds(id)
 
   const [apps, stages, feedbacks, users] = await Promise.all([
     Application.find({

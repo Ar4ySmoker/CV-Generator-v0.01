@@ -2,9 +2,9 @@ import { NextResponse } from "next/server"
 
 import { getUserId } from "@/lib/auth"
 import { connectDb } from "@/lib/db"
-import { Team } from "@/lib/models/team"
 import { TeamActivity } from "@/lib/models/team-activity"
 import { User } from "@/lib/models/user"
+import { isTeamMember } from "@/lib/team"
 
 export async function GET(
   _request: Request,
@@ -18,8 +18,7 @@ export async function GET(
   const { id } = await params
   await connectDb()
 
-  const team = await Team.findById(id)
-  if (!team || !team.memberIds.includes(userId)) {
+  if (!(await isTeamMember(userId, id))) {
     return NextResponse.json({ error: "Команда не найдена" }, { status: 404 })
   }
 

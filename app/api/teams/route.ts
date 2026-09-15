@@ -4,15 +4,16 @@ import { z } from "zod"
 import { getUserId } from "@/lib/auth"
 import { connectDb } from "@/lib/db"
 import { Team } from "@/lib/models/team"
-import {
-  findTeamOfMember,
-  generateInviteCode,
-  removeFromAnyTeam,
-  serializeTeam,
-} from "@/lib/team"
+import { TeamMembership } from "@/lib/models/team-membership"
+import { generateInviteCode, listMyTeams, serializeTeam } from "@/lib/team"
 
 const createSchema = z.object({
   name: z.string().trim().min(1, "Укажите название команды").max(80),
+  description: z.string().trim().max(300).optional(),
+  tags: z.array(z.string().trim().max(30)).max(10).optional(),
+  domain: z.string().trim().max(80).optional(),
+  visibility: z.enum(["public", "private"]).optional(),
+  joinMode: z.enum(["open", "request"]).optional(),
 })
 
 export async function GET() {
@@ -22,9 +23,9 @@ export async function GET() {
   }
 
   await connectDb()
-  const team = await findTeamOfMember(userId)
+  const teams = await listMyTeams(userId)
 
-  return NextResponse.json({ team: team ? serializeTeam(team) : null })
+  return NextResponse.json({ teams })
 }
 
 export async function POST(request: Request) {
@@ -50,8 +51,6 @@ export async function POST(request: Request) {
 
   await connectDb()
 
-  await removeFromAnyTeam(userId)
-
   let inviteCode = generateInviteCode()
   while (await Team.findOne({ inviteCode })) {
     inviteCode = generateInviteCode()
@@ -59,10 +58,23 @@ export async function POST(request: Request) {
 
   const team = await Team.create({
     name: parsed.data.name,
-    ownerId: userId,
+    description: parsed.data.description,
+    tags: parsed.data.tags,
+    domain: parsed.data.domain,
+    visibility: parsed.data.visibility ?? "private",
+    joinMode: parsed.data.joinMode ?? "request",
     inviteCode,
-    memberIds: [userId],
   })
 
-  return NextResponse.json({ team: serializeTeam(team) }, { status: 201 })
+  await TeamMembership.create({
+    userId,
+    teamId: team._id.toString(),
+    role: "owner",
+    status: "active",
+  })
+
+  return NextResponse.json(
+    { team: { ...serializeTeam(team), role: "owner" } },
+    { status: 201 }
+  )
 }

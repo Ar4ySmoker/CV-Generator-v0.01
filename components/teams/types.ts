@@ -1,16 +1,48 @@
+export type TeamRole = "owner" | "member" | "mentor" | "reviewer"
+
 export interface TeamInfo {
   id: string
   name: string
-  ownerId: string
+  description: string | null
+  tags: string[]
+  domain: string | null
+  visibility: "public" | "private"
+  joinMode: "open" | "request"
   inviteCode: string
-  memberIds: string[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface MyTeam {
+  team: TeamInfo
+  role: TeamRole
 }
 
 export interface TeamMember {
   id: string
   name: string
   email: string | null
-  isOwner: boolean
+  role: TeamRole
+}
+
+export interface DiscoverTeam extends TeamInfo {
+  memberCount: number
+  myRole: TeamRole | null
+}
+
+export interface TeamRequest {
+  id: string
+  userId: string
+  name: string
+  email: string | null
+  role: TeamRole
+  createdAt: string
+}
+
+export interface UserSearchResult {
+  id: string
+  name: string
+  email: string | null
 }
 
 export type Outcome =

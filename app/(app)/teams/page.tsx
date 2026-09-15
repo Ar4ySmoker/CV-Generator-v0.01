@@ -14,9 +14,9 @@ export default async function TeamsPage() {
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <h1 className="font-heading text-2xl font-medium">Команда</h1>
+        <h1 className="font-heading text-2xl font-medium">Команды</h1>
         <p className="text-sm text-muted-foreground">
-          Делитесь вакансиями и опытом собеседований с друзьями.
+          Делитесь вакансиями и опытом собеседований, находите друзей и менторов.
         </p>
       </div>
       <Suspense fallback={<Skeleton className="h-64 w-full" />}>

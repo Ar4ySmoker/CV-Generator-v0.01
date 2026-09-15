@@ -6,7 +6,7 @@ import { getUserId } from "@/lib/auth"
 import { connectDb } from "@/lib/db"
 import { Application } from "@/lib/models/application"
 import { PipelineStage } from "@/lib/models/pipeline-stage"
-import { addTeamActivity, findTeamOfMember } from "@/lib/team"
+import { addActivityToUserTeams } from "@/lib/team"
 
 function cleanOptional<T>(v: T | null | undefined): T | undefined {
   return v == null ? undefined : v
@@ -126,35 +126,29 @@ export async function PATCH(
 
   await app.save()
 
-  const team = await findTeamOfMember(userId)
-  if (team) {
-    const teamId = team._id.toString()
-    if (data.visibility === "team" && prevVisibility !== "team") {
-      await addTeamActivity({
-        teamId,
-        type: "shared",
-        actorId: userId,
-        applicationId: app._id.toString(),
-        company: app.company,
-        role: app.role,
-      })
-    }
-    if (
-      data.stageId !== undefined &&
-      data.stageId !== prevStageId &&
-      app.visibility === "team" &&
-      changedStageName
-    ) {
-      await addTeamActivity({
-        teamId,
-        type: "stage",
-        actorId: userId,
-        applicationId: app._id.toString(),
-        company: app.company,
-        role: app.role,
-        stageName: changedStageName,
-      })
-    }
+  if (data.visibility === "team" && prevVisibility !== "team") {
+    await addActivityToUserTeams(userId, {
+      type: "shared",
+      actorId: userId,
+      applicationId: app._id.toString(),
+      company: app.company,
+      role: app.role,
+    })
+  }
+  if (
+    data.stageId !== undefined &&
+    data.stageId !== prevStageId &&
+    app.visibility === "team" &&
+    changedStageName
+  ) {
+    await addActivityToUserTeams(userId, {
+      type: "stage",
+      actorId: userId,
+      applicationId: app._id.toString(),
+      company: app.company,
+      role: app.role,
+      stageName: changedStageName,
+    })
   }
 
   return NextResponse.json({ application: serializeApplication(app) })

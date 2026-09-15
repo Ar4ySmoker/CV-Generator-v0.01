@@ -3,7 +3,7 @@ import { NextResponse } from "next/server"
 import { getUserId } from "@/lib/auth"
 import { connectDb } from "@/lib/db"
 import { Team } from "@/lib/models/team"
-import { generateInviteCode, serializeTeam } from "@/lib/team"
+import { generateInviteCode, myRoleIn, serializeTeam } from "@/lib/team"
 
 export async function POST(
   _request: Request,
@@ -18,7 +18,11 @@ export async function POST(
   await connectDb()
 
   const team = await Team.findById(id)
-  if (!team || team.ownerId !== userId) {
+  if (!team) {
+    return NextResponse.json({ error: "Команда не найдена" }, { status: 404 })
+  }
+
+  if ((await myRoleIn(userId, id)) !== "owner") {
     return NextResponse.json({ error: "Нет прав" }, { status: 403 })
   }
 
