@@ -6,10 +6,10 @@ export default function SettingsLayout({
   children: React.ReactNode
 }) {
   return (
-    <main className="mx-auto flex min-h-svh w-full max-w-3xl flex-col gap-6 px-6 py-10">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <SettingsNav />
       {children}
-    </main>
+    </div>
   )
 }
 

@@ -1,8 +1,18 @@
 import mongoose, { Schema, type Model } from "mongoose"
 
+export type TimelineEventType =
+  | "stage_change"
+  | "sent"
+  | "response"
+  | "interview"
+  | "offer"
+  | "note"
+
 export interface TimelineEvent {
   at: Date
-  stageName: string
+  type: TimelineEventType
+  stageName?: string
+  stageId?: string
   note?: string
 }
 
@@ -11,6 +21,7 @@ export interface ApplicationDoc {
   userId: string
   company: string
   role: string
+  companyDomain?: string
   country?: string
   salaryMin?: number
   salaryMax?: number
@@ -21,18 +32,11 @@ export interface ApplicationDoc {
   cvId?: string
   stageId: string
   timeline: TimelineEvent[]
+  contactIds: string[]
   notes?: string
-  contactName?: string
-  contactEmail?: string
   sentChannel?: string
   sentTo?: string
   sentAt?: Date
-  respondedAt?: Date
-  responseChannel?: string
-  nextEventType?: string
-  nextEventAt?: Date
-  nextEventChannel?: string
-  nextEventNote?: string
   offerSalary?: number
   offerCurrency?: string
   offerBenefits?: string
@@ -42,11 +46,27 @@ export interface ApplicationDoc {
   updatedAt: Date
 }
 
+const TimelineEventSchema = new Schema<TimelineEvent>(
+  {
+    at: { type: Date, default: Date.now },
+    type: {
+      type: String,
+      enum: ["stage_change", "sent", "response", "interview", "offer", "note"],
+      required: true,
+    },
+    stageName: { type: String },
+    stageId: { type: String },
+    note: { type: String },
+  },
+  { _id: false }
+)
+
 const ApplicationSchema = new Schema<ApplicationDoc>(
   {
     userId: { type: String, required: true, index: true },
     company: { type: String, required: true },
     role: { type: String, required: true },
+    companyDomain: { type: String },
     country: { type: String },
     salaryMin: { type: Number },
     salaryMax: { type: Number },
@@ -56,28 +76,12 @@ const ApplicationSchema = new Schema<ApplicationDoc>(
     vacancyText: { type: String },
     cvId: { type: String },
     stageId: { type: String, required: true, index: true },
-    timeline: {
-      type: [
-        {
-          at: { type: Date, default: Date.now },
-          stageName: { type: String },
-          note: { type: String },
-        },
-      ],
-      default: [],
-    },
+    timeline: { type: [TimelineEventSchema], default: [] },
+    contactIds: { type: [String], default: [] },
     notes: { type: String },
-    contactName: { type: String },
-    contactEmail: { type: String },
     sentChannel: { type: String },
     sentTo: { type: String },
     sentAt: { type: Date },
-    respondedAt: { type: Date },
-    responseChannel: { type: String },
-    nextEventType: { type: String },
-    nextEventAt: { type: Date },
-    nextEventChannel: { type: String },
-    nextEventNote: { type: String },
     offerSalary: { type: Number },
     offerCurrency: { type: String },
     offerBenefits: { type: String },

@@ -3,9 +3,18 @@
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Download, Send, Trash, Wand } from "lucide-react"
+import {
+  ArrowLeft,
+  CalendarClock,
+  Check,
+  Download,
+  Trash,
+  Wand,
+  X,
+} from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -23,57 +32,27 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 
 import { Generator } from "@/components/generator"
-
+import { formatRelative, salaryRange } from "@/lib/format"
 import type { CvFormValues } from "@/lib/schemas"
 
-interface Stage {
-  id: string
-  name: string
-  color: string
-  type: string
-  terminalResult: string | null
-}
-
-interface TimelineEvent {
-  at: string
-  stageName: string
-  note?: string
-}
-
-interface FullApp {
-  id: string
-  company: string
-  role: string
-  country: string | null
-  salaryMin: number | null
-  salaryMax: number | null
-  currency: string | null
-  sourceType: string | null
-  sourceUrl: string | null
-  vacancyText: string | null
-  cvId: string | null
-  stageId: string
-  timeline: TimelineEvent[]
-  notes: string | null
-  contactName: string | null
-  contactEmail: string | null
-  sentChannel: string | null
-  sentTo: string | null
-  sentAt: string | null
-  respondedAt: string | null
-  responseChannel: string | null
-  nextEventType: string | null
-  nextEventAt: string | null
-  nextEventChannel: string | null
-  nextEventNote: string | null
-  offerSalary: number | null
-  offerCurrency: string | null
-  offerBenefits: string | null
-  offerRemote: string | null
-}
+import { ActivityTimeline } from "./activity-timeline"
+import { CompanyLogo } from "./company-logo"
+import { ContactPicker } from "./contact-picker"
+import { InterviewDialog } from "./interview-dialog"
+import { ResponseDialog } from "./response-dialog"
+import { SendDialog } from "./send-dialog"
+import { StageBadge } from "./stage-badge"
+import {
+  INTERVIEW_LABELS,
+  type ApplicationItem,
+  type ContactItem,
+  type InterviewItem,
+  type Stage,
+} from "./types"
 
 interface ProfileItem {
   id: string
@@ -82,94 +61,54 @@ interface ProfileItem {
   data: CvFormValues
 }
 
-const SEND_CHANNELS = ["Email", "Telegram", "LinkedIn", "Messenger"]
-
-const RESPONSE_CHANNELS = [
-  "Email",
-  "Telegram",
+const SOURCES = [
+  "hh.ru",
   "LinkedIn",
-  "Звонок",
-  "Мессенджер",
+  "Telegram",
+  "Wellfound",
+  "GitHub Jobs",
+  "Реферал",
+  "Другое",
 ]
-
-function toLocalInputValue(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
-    d.getHours()
-  )}:${pad(d.getMinutes())}`
-}
-
-function formatRelative(iso: string): string {
-  const diff = new Date(iso).getTime() - Date.now()
-  const mins = Math.round(diff / 60000)
-  if (mins < 0) return "прошло"
-  if (mins < 60) return `через ${mins} мин`
-  const hours = Math.round(mins / 60)
-  if (hours < 24) return `через ${hours} ч`
-  return `через ${Math.round(hours / 24)} дн`
-}
 
 export function ApplicationDetail({ applicationId }: { applicationId: string }) {
   const router = useRouter()
-  const [app, setApp] = useState<FullApp | null>(null)
+  const [app, setApp] = useState<ApplicationItem | null>(null)
   const [stages, setStages] = useState<Stage[]>([])
+  const [contacts, setContacts] = useState<ContactItem[]>([])
+  const [interviews, setInterviews] = useState<InterviewItem[]>([])
   const [profiles, setProfiles] = useState<ProfileItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
   const [generating, setGenerating] = useState(false)
-  const [channel, setChannel] = useState("")
-  const [customChannel, setCustomChannel] = useState("")
-  const [sendTo, setSendTo] = useState("")
-  const [sendAt, setSendAt] = useState("")
-  const [responseChannel, setResponseChannel] = useState("")
-  const [responseAt, setResponseAt] = useState("")
-  const [eventStageId, setEventStageId] = useState("")
-  const [eventAt, setEventAt] = useState("")
-  const [eventChannel, setEventChannel] = useState("")
-  const [eventNote, setEventNote] = useState("")
 
   const load = useCallback(async () => {
-    const [appRes, stagesRes, profilesRes] = await Promise.all([
-      fetch(`/api/applications/${applicationId}`),
-      fetch("/api/stages"),
-      fetch("/api/profiles"),
-    ])
+    const [appRes, stagesRes, contactsRes, interviewsRes, profilesRes] =
+      await Promise.all([
+        fetch(`/api/applications/${applicationId}`),
+        fetch("/api/stages"),
+        fetch("/api/contacts"),
+        fetch(`/api/interviews?applicationId=${applicationId}`),
+        fetch("/api/profiles"),
+      ])
     if (!appRes.ok) {
       setError("Отклик не найден")
       setLoading(false)
       return
     }
-    const appData = (await appRes.json()) as { application: FullApp }
+    const appData = (await appRes.json()) as { application: ApplicationItem }
     setApp(appData.application)
-
-    const ch = appData.application.sentChannel ?? ""
-    const known = ["Email", "Telegram", "LinkedIn", "Messenger"].includes(ch)
-    setChannel(known ? ch : ch ? "Другое" : "")
-    setCustomChannel(known ? "" : ch)
-    setSendTo(appData.application.sentTo ?? "")
-    setSendAt(
-      appData.application.sentAt
-        ? toLocalInputValue(new Date(appData.application.sentAt))
-        : toLocalInputValue(new Date())
-    )
-    setResponseChannel(appData.application.responseChannel ?? "")
-    setResponseAt(
-      appData.application.respondedAt
-        ? toLocalInputValue(new Date(appData.application.respondedAt))
-        : toLocalInputValue(new Date())
-    )
-    setEventAt(
-      appData.application.nextEventAt
-        ? toLocalInputValue(new Date(appData.application.nextEventAt))
-        : ""
-    )
-    setEventChannel(appData.application.nextEventChannel ?? "")
-    setEventNote(appData.application.nextEventNote ?? "")
-
     if (stagesRes.ok) {
       const d = (await stagesRes.json()) as { stages: Stage[] }
       setStages(d.stages)
+    }
+    if (contactsRes.ok) {
+      const d = (await contactsRes.json()) as { contacts: ContactItem[] }
+      setContacts(d.contacts)
+    }
+    if (interviewsRes.ok) {
+      const d = (await interviewsRes.json()) as { interviews: InterviewItem[] }
+      setInterviews(d.interviews)
     }
     if (profilesRes.ok) {
       const d = (await profilesRes.json()) as { profiles: ProfileItem[] }
@@ -183,25 +122,19 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
   }, [load])
 
   async function patch(payload: Record<string, unknown>) {
-    setSaving(true)
     setError(null)
-    try {
-      const res = await fetch(`/api/applications/${applicationId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
-      if (!res.ok) {
-        const d = (await res.json().catch(() => ({}))) as { error?: string }
-        throw new Error(d?.error ?? "Не удалось сохранить")
-      }
-      const d = (await res.json()) as { application: FullApp }
-      setApp(d.application)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Не удалось сохранить")
-    } finally {
-      setSaving(false)
+    const res = await fetch(`/api/applications/${applicationId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+      const d = (await res.json().catch(() => ({}))) as { error?: string }
+      setError(d?.error ?? "Не удалось сохранить")
+      return
     }
+    const d = (await res.json()) as { application: ApplicationItem }
+    setApp(d.application)
   }
 
   async function remove() {
@@ -209,57 +142,45 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
     router.push("/applications")
   }
 
-  async function recordSend() {
-    const finalChannel = channel === "Другое" ? customChannel.trim() : channel
-    if (!finalChannel && !sendTo.trim()) {
-      setError("Укажите канал или кому отправлено")
-      return
-    }
-    const sentStage = stages.find((s) => s.name === "Отправлено")
-    await patch({
-      sentChannel: finalChannel || null,
-      sentTo: sendTo.trim() || null,
-      sentAt: sendAt ? new Date(sendAt).toISOString() : new Date().toISOString(),
-      ...(sentStage ? { stageId: sentStage.id } : {}),
-    })
+  async function toggleContact(contactId: string) {
+    const current = app?.contactIds ?? []
+    const next = current.includes(contactId)
+      ? current.filter((id) => id !== contactId)
+      : [...current, contactId]
+    await patch({ contactIds: next })
   }
 
-  async function recordResponse() {
-    const respStage = stages.find((s) => s.name === "Ответ (HR)")
-    await patch({
-      respondedAt: responseAt
-        ? new Date(responseAt).toISOString()
-        : new Date().toISOString(),
-      responseChannel: responseChannel || null,
-      ...(respStage ? { stageId: respStage.id } : {}),
+  async function createContact(data: {
+    name: string
+    email?: string
+    phone?: string
+    linkedin?: string
+    company?: string
+    role?: string
+  }): Promise<ContactItem | null> {
+    const res = await fetch("/api/contacts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
     })
+    if (!res.ok) return null
+    const d = (await res.json()) as { contact: ContactItem }
+    setContacts((prev) => [...prev, d.contact])
+    return d.contact
   }
 
-  async function scheduleEvent() {
-    const stage = stages.find((s) => s.id === eventStageId)
-    if (!stage) {
-      setError("Выберите этап события")
-      return
-    }
-    await patch({
-      nextEventType: stage.name,
-      nextEventAt: eventAt ? new Date(eventAt).toISOString() : null,
-      nextEventChannel: eventChannel || null,
-      nextEventNote: eventNote || null,
-      stageId: stage.id,
+  async function updateInterviewStatus(id: string, status: string) {
+    await fetch(`/api/interviews/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
     })
+    await load()
   }
 
-  async function clearEvent() {
-    await patch({
-      nextEventType: null,
-      nextEventAt: null,
-      nextEventChannel: null,
-      nextEventNote: null,
-    })
-    setEventAt("")
-    setEventChannel("")
-    setEventNote("")
+  async function deleteInterview(id: string) {
+    await fetch(`/api/interviews/${id}`, { method: "DELETE" })
+    await load()
   }
 
   if (loading) {
@@ -275,10 +196,18 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
   }
 
   const currentStage = stages.find((s) => s.id === app.stageId)
+  const appInterviews = interviews.filter((iv) => iv.applicationId === app.id)
+  const upcoming = appInterviews
+    .filter((iv) => iv.status === "scheduled")
+    .sort(
+      (a, b) =>
+        new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
+    )
   const defaultProfile =
     profiles.find((p) => p.isDefault) ?? profiles[0] ?? null
   const isOfferStage =
     currentStage?.name === "Офер" || currentStage?.terminalResult === "accepted"
+  const salary = salaryRange(app.salaryMin, app.salaryMax, app.currency)
 
   return (
     <div className="flex flex-col gap-4">
@@ -300,19 +229,33 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">{app.role}</CardTitle>
-          <p className="text-sm text-muted-foreground">{app.company}</p>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-1.5">
-              <Label>Этап</Label>
+        <CardContent className="flex flex-col gap-4 pt-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <CompanyLogo
+                domain={app.companyDomain}
+                name={app.company}
+                size="lg"
+              />
+              <div>
+                <h1 className="font-heading text-xl font-medium">{app.role}</h1>
+                <p className="text-sm text-muted-foreground">{app.company}</p>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  {currentStage ? <StageBadge stage={currentStage} /> : null}
+                  {salary ? (
+                    <span className="text-sm text-muted-foreground">
+                      {salary}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
               <Select
                 value={app.stageId}
                 onValueChange={(v) => patch({ stageId: v })}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-44">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -324,366 +267,376 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Страна / город</Label>
-              <Input
-                defaultValue={app.country ?? ""}
-                onBlur={(e) => {
-                  if (e.target.value !== (app.country ?? "")) {
-                    patch({ country: e.target.value || null })
-                  }
-                }}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Контакт</Label>
-              <Input
-                defaultValue={app.contactName ?? ""}
-                placeholder="Имя контакта"
-                onBlur={(e) => {
-                  if (e.target.value !== (app.contactName ?? "")) {
-                    patch({ contactName: e.target.value || null })
-                  }
-                }}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Email контакта</Label>
-              <Input
-                defaultValue={app.contactEmail ?? ""}
-                placeholder="email@company.com"
-                onBlur={(e) => {
-                  if (e.target.value !== (app.contactEmail ?? "")) {
-                    patch({ contactEmail: e.target.value || null })
-                  }
-                }}
-              />
-            </div>
           </div>
 
           <Separator />
 
-          <div>
-            <h3 className="text-sm font-medium">История этапов</h3>
-            <ol className="mt-2 flex flex-col gap-1.5">
-              {app.timeline.map((t, i) => (
-                <li
-                  key={i}
-                  className="flex items-center gap-2 text-sm text-muted-foreground"
-                >
-                  <span className="size-1.5 rounded-full bg-muted-foreground" />
-                  <span>{t.stageName}</span>
-                  <span className="ml-auto text-xs">
-                    {new Date(t.at).toLocaleString("ru-RU")}
-                  </span>
-                </li>
-              ))}
-            </ol>
+          <div className="flex flex-wrap items-center gap-2">
+            <SendDialog
+              applicationId={app.id}
+              stages={stages}
+              onSaved={load}
+            />
+            <ResponseDialog
+              applicationId={app.id}
+              stages={stages}
+              onSaved={load}
+            />
+            <InterviewDialog
+              applicationId={app.id}
+              onCreated={load}
+            />
           </div>
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Отправка CV</CardTitle>
           {app.sentAt ? (
             <p className="text-xs text-muted-foreground">
-              Отправлено: {app.sentChannel ?? "—"} → {app.sentTo ?? "—"} ·{" "}
+              Отправлено: {app.sentChannel ?? "—"}
+              {app.sentTo ? ` → ${app.sentTo}` : ""} ·{" "}
               {new Date(app.sentAt).toLocaleString("ru-RU")}
             </p>
           ) : null}
-        </CardHeader>
-        <CardContent className="grid gap-3">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="flex flex-col gap-1.5">
-              <Label>Канал</Label>
-              <Select value={channel} onValueChange={setChannel}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Канал" />
-                </SelectTrigger>
-                <SelectContent>
-                  {SEND_CHANNELS.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
-                  ))}
-                  <SelectItem value="Другое">Другое…</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {channel === "Другое" ? (
-              <div className="flex flex-col gap-1.5">
-                <Label>Свой канал</Label>
-                <Input
-                  value={customChannel}
-                  onChange={(e) => setCustomChannel(e.target.value)}
-                  placeholder="WhatsApp, мессенджер…"
-                />
-              </div>
-            ) : null}
-            <div className="flex flex-col gap-1.5">
-              <Label>Кому</Label>
-              <Input
-                value={sendTo}
-                onChange={(e) => setSendTo(e.target.value)}
-                placeholder="email / @telegram / имя"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Когда</Label>
-              <Input
-                type="datetime-local"
-                value={sendAt}
-                onChange={(e) => setSendAt(e.target.value)}
-              />
-            </div>
-          </div>
-          <Button
-            variant="secondary"
-            className="w-fit"
-            onClick={recordSend}
-            disabled={saving}
-          >
-            <Send /> Зафиксировать отправку
-          </Button>
+          {upcoming.length > 0 ? (
+            <p className="text-xs text-primary">
+              Ближайшее: {INTERVIEW_LABELS[upcoming[0].type]} ·{" "}
+              {formatRelative(upcoming[0].scheduledAt)}
+            </p>
+          ) : null}
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Ответ и созвон</CardTitle>
-          {app.nextEventAt ? (
-            <p className="text-xs text-muted-foreground">
-              {app.nextEventType ?? "Событие"}
-              {app.nextEventChannel ? ` · ${app.nextEventChannel}` : ""} ·{" "}
-              {formatRelative(app.nextEventAt)}
-            </p>
-          ) : null}
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="flex flex-col gap-1.5">
-              <Label>Ответ — откуда</Label>
-              <Select value={responseChannel} onValueChange={setResponseChannel}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Канал" />
-                </SelectTrigger>
-                <SelectContent>
-                  {RESPONSE_CHANNELS.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
-                  ))}
-                  <SelectItem value="Другое">Другое…</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Когда ответил</Label>
-              <Input
-                type="datetime-local"
-                value={responseAt}
-                onChange={(e) => setResponseAt(e.target.value)}
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList>
+          <TabsTrigger value="overview">Обзор</TabsTrigger>
+          <TabsTrigger value="timeline">Таймлайн</TabsTrigger>
+          <TabsTrigger value="contacts">Контакты</TabsTrigger>
+          <TabsTrigger value="events">События</TabsTrigger>
+          <TabsTrigger value="notes">Заметки</TabsTrigger>
+          <TabsTrigger value="cv">CV</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="pt-4">
+          <Card>
+            <CardContent className="flex flex-col gap-4 pt-6">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="flex flex-col gap-1.5">
+                  <Label>Страна / город</Label>
+                  <Input
+                    defaultValue={app.country ?? ""}
+                    onBlur={(e) => {
+                      if (e.target.value !== (app.country ?? "")) {
+                        patch({ country: e.target.value || null })
+                      }
+                    }}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label>Источник</Label>
+                  <Select
+                    value={app.sourceType ?? ""}
+                    onValueChange={(v) => patch({ sourceType: v || null })}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Где нашли вакансию" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SOURCES.map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {s}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label>Ссылка на вакансию</Label>
+                  <Input
+                    defaultValue={app.sourceUrl ?? ""}
+                    placeholder="https://…"
+                    onBlur={(e) => {
+                      if (e.target.value !== (app.sourceUrl ?? "")) {
+                        patch({ sourceUrl: e.target.value || null })
+                      }
+                    }}
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="flex flex-col gap-1.5">
+                    <Label>ЗП от</Label>
+                    <Input
+                      defaultValue={app.salaryMin != null ? String(app.salaryMin) : ""}
+                      onBlur={(e) =>
+                        patch({
+                          salaryMin: e.target.value
+                            ? Number(e.target.value)
+                            : null,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label>до</Label>
+                    <Input
+                      defaultValue={app.salaryMax != null ? String(app.salaryMax) : ""}
+                      onBlur={(e) =>
+                        patch({
+                          salaryMax: e.target.value
+                            ? Number(e.target.value)
+                            : null,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Валюта</Label>
+                    <Input
+                      defaultValue={app.currency ?? ""}
+                      onBlur={(e) =>
+                        patch({ currency: e.target.value || null })
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {isOfferStage ? (
+                <>
+                  <Separator />
+                  <div>
+                    <h3 className="text-sm font-medium">Офер</h3>
+                    <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                      <div className="flex flex-col gap-1.5">
+                        <Label>ЗП</Label>
+                        <Input
+                          key={app.offerSalary ?? ""}
+                          defaultValue={
+                            app.offerSalary != null ? String(app.offerSalary) : ""
+                          }
+                          placeholder="5000"
+                          onBlur={(e) =>
+                            patch({
+                              offerSalary: e.target.value
+                                ? Number(e.target.value)
+                                : null,
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <Label>Валюта</Label>
+                        <Input
+                          key={app.offerCurrency ?? ""}
+                          defaultValue={app.offerCurrency ?? ""}
+                          placeholder="USD"
+                          onBlur={(e) =>
+                            patch({ offerCurrency: e.target.value || null })
+                          }
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <Label>Бенефиты</Label>
+                        <Input
+                          key={app.offerBenefits ?? ""}
+                          defaultValue={app.offerBenefits ?? ""}
+                          placeholder="страховка, отпуск…"
+                          onBlur={(e) =>
+                            patch({ offerBenefits: e.target.value || null })
+                          }
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <Label>Формат</Label>
+                        <Input
+                          key={app.offerRemote ?? ""}
+                          defaultValue={app.offerRemote ?? ""}
+                          placeholder="remote / hybrid / office"
+                          onBlur={(e) =>
+                            patch({ offerRemote: e.target.value || null })
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : null}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="timeline" className="pt-4">
+          <Card>
+            <CardContent className="pt-6">
+              <ActivityTimeline timeline={app.timeline} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="contacts" className="pt-4">
+          <Card>
+            <CardContent className="pt-6">
+              <ContactPicker
+                contacts={contacts}
+                selectedIds={app.contactIds}
+                onToggle={toggleContact}
+                onCreate={createContact}
               />
-            </div>
-            <div className="flex items-end">
-              <Button variant="secondary" onClick={recordResponse} disabled={saving}>
-                <Send /> Записать ответ
-              </Button>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-          <Separator />
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-1.5">
-              <Label>Назначено (этап)</Label>
-              <Select value={eventStageId} onValueChange={setEventStageId}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Собеседование, тестовое…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {stages
-                    .filter((s) => s.type === "active")
-                    .map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.name}
-                      </SelectItem>
+        <TabsContent value="events" className="pt-4">
+          <Card>
+            <CardContent className="flex flex-col gap-4 pt-6">
+              <InterviewDialog applicationId={app.id} onCreated={load} />
+              {appInterviews.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Событий нет. Назначьте созвон или собеседование.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {appInterviews
+                    .sort(
+                      (a, b) =>
+                        new Date(b.scheduledAt).getTime() -
+                        new Date(a.scheduledAt).getTime()
+                    )
+                    .map((iv) => (
+                      <div
+                        key={iv.id}
+                        className="flex items-center gap-3 rounded-xl border border-border/60 p-3"
+                      >
+                        <CalendarClock className="size-4 text-muted-foreground" />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium">
+                            {INTERVIEW_LABELS[iv.type]}
+                            {iv.channel ? ` · ${iv.channel}` : ""}
+                          </p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {new Date(iv.scheduledAt).toLocaleString("ru-RU")}
+                            {iv.note ? ` · ${iv.note}` : ""}
+                          </p>
+                        </div>
+                        {iv.status === "scheduled" ? (
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              title="Завершено"
+                              onClick={() => updateInterviewStatus(iv.id, "done")}
+                            >
+                              <Check />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              title="Отменено"
+                              onClick={() => updateInterviewStatus(iv.id, "cancelled")}
+                            >
+                              <X />
+                            </Button>
+                          </div>
+                        ) : (
+                          <Badge variant="secondary">{iv.status}</Badge>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="text-muted-foreground"
+                          onClick={() => deleteInterview(iv.id)}
+                        >
+                          <Trash />
+                        </Button>
+                      </div>
                     ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Когда</Label>
-              <Input
-                type="datetime-local"
-                value={eventAt}
-                onChange={(e) => setEventAt(e.target.value)}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Канал созвона</Label>
-              <Input
-                value={eventChannel}
-                onChange={(e) => setEventChannel(e.target.value)}
-                placeholder="Google Meet / Zoom / телефон…"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Заметка / ссылка</Label>
-              <Input
-                value={eventNote}
-                onChange={(e) => setEventNote(e.target.value)}
-                placeholder="Ссылка на встречу"
-              />
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="secondary" onClick={scheduleEvent} disabled={saving}>
-              Назначить
-            </Button>
-            {app.nextEventAt ? (
-              <Button variant="ghost" onClick={clearEvent} disabled={saving}>
-                Завершено
-              </Button>
-            ) : null}
-          </div>
-        </CardContent>
-      </Card>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Заметки</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2">
-          <Textarea
-            key={app.notes ?? ""}
-            defaultValue={app.notes ?? ""}
-            placeholder="Договорённости, детали, что ответили…"
-            onBlur={(e) => {
-              if (e.target.value !== (app.notes ?? "")) {
-                patch({ notes: e.target.value })
-              }
-            }}
-          />
-        </CardContent>
-      </Card>
-
-      {isOfferStage ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Офер</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-1.5">
-              <Label>ЗП</Label>
-              <Input
-                key={app.offerSalary ?? ""}
-                defaultValue={app.offerSalary != null ? String(app.offerSalary) : ""}
-                placeholder="5000"
-                onBlur={(e) =>
-                  patch({ offerSalary: e.target.value ? Number(e.target.value) : null })
-                }
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Валюта</Label>
-              <Input
-                key={app.offerCurrency ?? ""}
-                defaultValue={app.offerCurrency ?? ""}
-                placeholder="USD"
-                onBlur={(e) => patch({ offerCurrency: e.target.value || null })}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Бенефиты</Label>
-              <Input
-                key={app.offerBenefits ?? ""}
-                defaultValue={app.offerBenefits ?? ""}
-                placeholder="страховка, отпуск…"
-                onBlur={(e) => patch({ offerBenefits: e.target.value || null })}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Формат</Label>
-              <Input
-                key={app.offerRemote ?? ""}
-                defaultValue={app.offerRemote ?? ""}
-                placeholder="remote / hybrid / office"
-                onBlur={(e) => patch({ offerRemote: e.target.value || null })}
-              />
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">CV</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          {app.cvId ? (
-            <Button asChild variant="outline" className="w-fit">
-              <a
-                href={`/api/generated-cvs/${app.cvId}/download`}
-                download
-              >
-                <Download /> Скачать CV
-              </a>
-            </Button>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              CV для этого отклика ещё не сгенерировано.
-            </p>
-          )}
-
-          {!generating ? (
-            <Button
-              variant="secondary"
-              className="w-fit"
-              onClick={() => setGenerating(true)}
-            >
-              <Wand /> Сгенерировать CV под вакансию
-            </Button>
-          ) : null}
-
-          {generating ? (
-            <div className="flex flex-col gap-3 rounded-xl border border-border/60 p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium">Генерация CV</p>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setGenerating(false)
-                    load()
-                  }}
-                >
-                  Скрыть
-                </Button>
-              </div>
-              <Generator
-                initialValues={defaultProfile?.data}
-                vacancyText={app.vacancyText ?? undefined}
-                generateExtras={{ save: true, applicationId: app.id }}
-                showVacancyEntry={false}
-                onGenerated={() => {
-                  setGenerating(false)
-                  load()
+        <TabsContent value="notes" className="pt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Заметки</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Textarea
+                key={app.notes ?? ""}
+                defaultValue={app.notes ?? ""}
+                placeholder="Договорённости, детали, что ответили…"
+                onBlur={(e) => {
+                  if (e.target.value !== (app.notes ?? "")) {
+                    patch({ notes: e.target.value })
+                  }
                 }}
               />
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="cv" className="pt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">CV</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              {app.cvId ? (
+                <Button asChild variant="outline" className="w-fit">
+                  <a href={`/api/generated-cvs/${app.cvId}/download`} download>
+                    <Download /> Скачать CV
+                  </a>
+                </Button>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  CV для этого отклика ещё не сгенерировано.
+                </p>
+              )}
+
+              {!generating ? (
+                <Button
+                  variant="secondary"
+                  className="w-fit"
+                  onClick={() => setGenerating(true)}
+                >
+                  <Wand /> Сгенерировать CV под вакансию
+                </Button>
+              ) : null}
+
+              {generating ? (
+                <div className="flex flex-col gap-3 rounded-xl border border-border/60 p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">Генерация CV</p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setGenerating(false)
+                        load()
+                      }}
+                    >
+                      Скрыть
+                    </Button>
+                  </div>
+                  <Generator
+                    initialValues={defaultProfile?.data}
+                    vacancyText={app.vacancyText ?? undefined}
+                    generateExtras={{ save: true, applicationId: app.id }}
+                    showVacancyEntry={false}
+                    onGenerated={() => {
+                      setGenerating(false)
+                      load()
+                    }}
+                  />
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {error ? (
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
-      ) : null}
-      {saving ? (
-        <p className="text-xs text-muted-foreground">Сохранение…</p>
       ) : null}
     </div>
   )

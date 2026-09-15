@@ -20,62 +20,47 @@
 
 ```
 app/
-  layout.tsx                      # root layout: fonts, SessionProvider, ThemeProvider, metadata
-  page.tsx                        # лендинг + анонимный генератор (публичный)
-  globals.css                     # tailwind v4 + theme tokens
-  login/page.tsx, register/page.tsx
-  dashboard/page.tsx              # статистика (защищено)
-  applications/page.tsx           # kanban + список (защищено)
-  applications/new/page.tsx       # создание отклика (защищено)
-  applications/[id]/page.tsx      # детали отклика (защищено)
-  offers/page.tsx                 # сравнение оферов (защищено)
-  settings/layout.tsx             # layout настроек (SettingsNav)
-  settings/{keys,profile,pipeline}/page.tsx
+  layout.tsx                      # root layout: fonts, SessionProvider, ThemeProvider, TooltipProvider, Toaster
+  (marketing)/                    # публичная часть (без sidebar)
+    layout.tsx                    # SiteHeader
+    page.tsx                      # лендинг + анонимный генератор
+    login/page.tsx, register/page.tsx
+  (app)/                          # личный кабинет (sidebar)
+    layout.tsx                    # AppShell (SidebarProvider + SidebarInset)
+    dashboard/page.tsx
+    applications/page.tsx, new/page.tsx, [id]/page.tsx
+    offers/page.tsx
+    contacts/page.tsx             # адресная книга
+    settings/{layout.tsx, keys,profile,pipeline}/page.tsx
   api/
-    auth/[...nextauth]/route.ts   # NextAuth handlers
-    register/route.ts             # POST — создание пользователя
-    generate/route.ts             # POST — LLM + DOCX (+ сохранение GeneratedCv)
-    generated-cvs/[id]/download/route.ts  # GET — DOCX из сохранённого AdaptedCv
-    keys/route.ts, keys/[id]/route.ts     # CRUD API-ключей
-    profiles/route.ts, profiles/[id]/route.ts # CRUD профилей
-    stages/route.ts               # GET список, PUT обновление воронки
-    applications/route.ts, applications/[id]/route.ts # CRUD откликов
+    auth/[...nextauth]/route.ts
+    register/route.ts
+    generate/route.ts, generated-cvs/[id]/download/route.ts
+    keys/route.ts, keys/[id]/route.ts
+    profiles/route.ts, profiles/[id]/route.ts, profiles/import/route.ts
+    stages/route.ts
+    applications/route.ts, applications/[id]/route.ts
+    contacts/route.ts, contacts/[id]/route.ts
+    interviews/route.ts, interviews/[id]/route.ts
+    push/subscribe/route.ts, cron/reminders/route.ts
 components/
-  ui/                             # shadcn-компоненты
-  form/
-    cv-form.tsx                   # мультишаг-форма (7 шагов)
-    fields.tsx                    # обёртки TextField/TextArea/SelectField
-    mode-selector.tsx             # выбор режима (3 карточки)
-    disclaimer-dialog.tsx         # дисклеймер «сгенерировать опыт»
-    steps/                        # personal, skills, experience, education, projects, languages, vacancy
-  generator.tsx                   # машина состояний: режим → дисклеймер → форма
-  auth/                           # session-provider, login/register form, sign-out-button, auth-nav
-  app/app-header.tsx              # навигация приложения (дашборд/отклики/оферы/настройки)
-  settings/                       # settings-nav, api-keys-manager, profiles-manager, pipeline-editor
-  applications/                   # applications-board, application-form, application-detail
-  dashboard/dashboard-stats.tsx
+  ui/                             # shadcn-компоненты (incl. sidebar, avatar, dropdown, dialog, sheet, popover, tooltip, sonner, table, tabs, calendar, progress)
+  app/                            # app-sidebar.tsx, app-shell.tsx
+  form/                           # cv-form, fields, mode-selector, disclaimer-dialog, steps/*
+  generator.tsx
+  applications/                   # applications-board, pipeline-board, application-card, application-detail, activity-timeline, company-logo, stage-badge, contact-picker, interview-dialog, send-dialog, response-dialog, application-form, types.ts
+  dashboard/                      # dashboard-stats, metric-card, funnel-chart
   offers/offers-table.tsx
-  theme-provider.tsx
+  contacts/contacts-manager.tsx
+  settings/, auth/, notifications/, theme-provider.tsx, site-header.tsx
 lib/
-  auth.ts                         # NextAuth v5 (credentials, JWT) + getUserId()
-  auth.config.ts                  # edge-safe конфиг (authorized callback)
-  db.ts                           # mongoose singleton-подключение
-  schemas.ts                      # Zod: форма CV (cvFormSchema) + запрос генерации
-  api-schemas.ts                  # Zod: валидация API (профили, отклики)
-  llm.ts                          # LLM-клиент (провайдер-агностик) + промпты + контракт AdaptedCv
-  providers.ts                    # каталог провайдеров + ChatProvider + keyHint
-  resolve-provider.ts             # выбор ключа: дефолтный пользователя → серверный фолбэк
-  encryption.ts                   # AES-256-GCM шифрование
-  vacancy.ts                      # fetch вакансии по URL + определение языка
-  docx.ts                         # сборка DOCX (порт generate.py)
-  pipeline.ts                     # дефолтные этапы + ensure/start/list
-  profile-import.ts               # импорт profile.yaml (YAML/JSON) → CvFormValues
-  web-push.ts                     # отправка web-push (VAPID)
-  utils.ts                        # cn
-  models/                         # Mongoose-модели (см. §4)
+  auth.ts, auth.config.ts, db.ts, schemas.ts, api-schemas.ts, llm.ts, providers.ts,
+  resolve-provider.ts, encryption.ts, vacancy.ts, docx.ts, pipeline.ts,
+  profile-import.ts, web-push.ts, utils.ts, format.ts, application-serialize.ts
+  models/                         # user, api-key, profile, generated-cv, pipeline-stage, application, contact, interview, push-subscription
 proxy.ts                          # защита маршрутов (замена middleware.ts в Next 16)
-types/next-auth.d.ts              # расширение типов сессии (user.id)
-docs/                             # ARCHITECTURE.md, ROADMAP.md
+types/next-auth.d.ts
+docs/
 ```
 
 ## 3. Модель данных (MongoDB / Mongoose)
@@ -90,7 +75,9 @@ docs/                             # ARCHITECTURE.md, ROADMAP.md
 | `profiles` | `userId`, `label`, `data` (CvFormValues, Mixed), `isDefault` |
 | `generatedcvs` | `userId`, `applicationId?`, `profileId?`, `adaptedCv` (AdaptedCv), `inputSnapshot` (CvFormValues), `lang` |
 | `pipelinestages` | `userId`, `name`, `order`, `color`, `type` (`start`/`active`/`terminal`), `terminalResult?` (`rejected`/`no-response`/`accepted`) |
-| `applications` | `userId`, `company`, `role`, `country?`, `salaryMin/Max?`, `currency?`, `sourceType?`, `sourceUrl?`, `vacancyText?`, `cvId?`, `stageId`, `timeline[]`, `notes?`, `contactName?`, `contactEmail?`, `sentChannel?`, `sentTo?`, `sentAt?`, `respondedAt?`, `responseChannel?`, `nextEventType?`, `nextEventAt?`, `nextEventChannel?`, `nextEventNote?`, `offerSalary?`, `offerCurrency?`, `offerBenefits?`, `offerRemote?`, `archived` |
+| `applications` | `userId`, `company`, `role`, `companyDomain?`, `country?`, `salaryMin/Max?`, `currency?`, `sourceType?`, `sourceUrl?`, `vacancyText?`, `cvId?`, `stageId`, `timeline[]` (activity-log: `{at, type, stageId?, stageName?, note?}`), `contactIds[]`, `notes?`, `sentChannel?`, `sentTo?`, `sentAt?`, `offerSalary?`, `offerCurrency?`, `offerBenefits?`, `offerRemote?`, `archived` |
+| `contacts` | `userId`, `name`, `email?`, `phone?`, `linkedin?`, `company?`, `role?`, `notes?`, timestamps |
+| `interviews` | `userId`, `applicationId`, `type` (`screen`/`technical`/`final`/`assignment`/`custom`), `scheduledAt`, `channel?`, `note?`, `status` (`scheduled`/`done`/`cancelled`), timestamps |
 | `pushsubscriptions` | `userId`, `endpoint` (unique), `keys.p256dh`, `keys.auth` |
 
 > **Важно:** в моделях Mongoose нельзя использовать имя поля `model` — конфликтует с
@@ -162,7 +149,11 @@ senior-стиля. Ответ — строгий JSON (валидируется 
 | `GET /api/stages` | да | Список этапов (авто-сид дефолтных) |
 | `PUT /api/stages` | да | Полная замена воронки (`{stages:[...]}`), удалённые этапы переносят отклики на «Старт» |
 | `GET/POST /api/applications` | да | Список (`?search=`, `?archived=1`) / создание (авто-этап «Старт») |
-| `GET/PATCH/DELETE /api/applications/:id` | да | Детали / обновление (смена этапа → запись в timeline + авто `sentAt` на «Отправлено») / удаление |
+| `GET/PATCH/DELETE /api/applications/:id` | да | Детали / обновление (смена этапа → activity `stage_change` + авто `sentAt` на «Отправлено»; `activity` → запись в таймлайн) / удаление |
+| `GET/POST /api/contacts` | да | Адресная книга (с `applicationCount`) / создание |
+| `PATCH/DELETE /api/contacts/:id` | да | Обновление / удаление (снимает связь с откликами) |
+| `GET/POST /api/interviews` | да | Список событий (`?applicationId=`, с `company`/`role` отклика) / создание |
+| `PATCH/DELETE /api/interviews/:id` | да | Обновление (тип/дата/канал/статус) / удаление |
 | `POST/DELETE /api/push/subscribe` | да | Сохранение/удаление подписки web-push (`{endpoint, keys}`) |
 | `GET /api/cron/reminders` | cron | Напоминания за ≤1ч до события (auth: `Bearer CRON_SECRET`) |
 

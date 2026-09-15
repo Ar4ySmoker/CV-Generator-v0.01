@@ -1,50 +1,14 @@
 import { NextResponse } from "next/server"
 
 import { applicationUpdateSchema } from "@/lib/api-schemas"
+import { serializeApplication } from "@/lib/application-serialize"
 import { getUserId } from "@/lib/auth"
 import { connectDb } from "@/lib/db"
-import { Application, type ApplicationDoc } from "@/lib/models/application"
+import { Application } from "@/lib/models/application"
 import { PipelineStage } from "@/lib/models/pipeline-stage"
 
 function cleanOptional<T>(v: T | null | undefined): T | undefined {
   return v == null ? undefined : v
-}
-
-function serializeFull(a: ApplicationDoc) {
-  return {
-    id: a._id.toString(),
-    company: a.company,
-    role: a.role,
-    country: a.country ?? null,
-    salaryMin: a.salaryMin ?? null,
-    salaryMax: a.salaryMax ?? null,
-    currency: a.currency ?? null,
-    sourceType: a.sourceType ?? null,
-    sourceUrl: a.sourceUrl ?? null,
-    vacancyText: a.vacancyText ?? null,
-    cvId: a.cvId ?? null,
-    stageId: a.stageId,
-    timeline: a.timeline ?? [],
-    notes: a.notes ?? null,
-    contactName: a.contactName ?? null,
-    contactEmail: a.contactEmail ?? null,
-    sentChannel: a.sentChannel ?? null,
-    sentTo: a.sentTo ?? null,
-    sentAt: a.sentAt ?? null,
-    respondedAt: a.respondedAt ?? null,
-    responseChannel: a.responseChannel ?? null,
-    nextEventType: a.nextEventType ?? null,
-    nextEventAt: a.nextEventAt ?? null,
-    nextEventChannel: a.nextEventChannel ?? null,
-    nextEventNote: a.nextEventNote ?? null,
-    offerSalary: a.offerSalary ?? null,
-    offerCurrency: a.offerCurrency ?? null,
-    offerBenefits: a.offerBenefits ?? null,
-    offerRemote: a.offerRemote ?? null,
-    archived: a.archived,
-    createdAt: a.createdAt,
-    updatedAt: a.updatedAt,
-  }
 }
 
 export async function GET(
@@ -64,7 +28,7 @@ export async function GET(
     return NextResponse.json({ error: "Отклик не найден" }, { status: 404 })
   }
 
-  return NextResponse.json({ application: serializeFull(app) })
+  return NextResponse.json({ application: serializeApplication(app) })
 }
 
 export async function PATCH(
@@ -103,6 +67,7 @@ export async function PATCH(
 
   if (data.company !== undefined) app.company = data.company
   if (data.role !== undefined) app.role = data.role
+  if (data.companyDomain !== undefined) app.companyDomain = cleanOptional(data.companyDomain)
   if (data.country !== undefined) app.country = cleanOptional(data.country)
   if (data.salaryMin !== undefined) app.salaryMin = cleanOptional(data.salaryMin)
   if (data.salaryMax !== undefined) app.salaryMax = cleanOptional(data.salaryMax)
@@ -111,21 +76,9 @@ export async function PATCH(
   if (data.sourceUrl !== undefined) app.sourceUrl = cleanOptional(data.sourceUrl)
   if (data.vacancyText !== undefined) app.vacancyText = cleanOptional(data.vacancyText)
   if (data.notes !== undefined) app.notes = cleanOptional(data.notes)
-  if (data.contactName !== undefined) app.contactName = cleanOptional(data.contactName)
-  if (data.contactEmail !== undefined) app.contactEmail = cleanOptional(data.contactEmail)
+  if (data.contactIds !== undefined) app.contactIds = data.contactIds
   if (data.sentChannel !== undefined) app.sentChannel = cleanOptional(data.sentChannel)
   if (data.sentTo !== undefined) app.sentTo = cleanOptional(data.sentTo)
-  if (data.respondedAt !== undefined) {
-    app.respondedAt = data.respondedAt ? new Date(data.respondedAt) : undefined
-  }
-  if (data.responseChannel !== undefined) app.responseChannel = cleanOptional(data.responseChannel)
-  if (data.nextEventType !== undefined) app.nextEventType = cleanOptional(data.nextEventType)
-  if (data.nextEventAt !== undefined) {
-    app.nextEventAt = data.nextEventAt ? new Date(data.nextEventAt) : undefined
-  }
-  if (data.nextEventChannel !== undefined) app.nextEventChannel = cleanOptional(data.nextEventChannel)
-  if (data.nextEventNote !== undefined) app.nextEventNote = cleanOptional(data.nextEventNote)
-  if (data.archived !== undefined) app.archived = data.archived
   if (data.sentAt !== undefined) {
     app.sentAt = data.sentAt ? new Date(data.sentAt) : undefined
   }
@@ -133,10 +86,28 @@ export async function PATCH(
   if (data.offerCurrency !== undefined) app.offerCurrency = cleanOptional(data.offerCurrency)
   if (data.offerBenefits !== undefined) app.offerBenefits = cleanOptional(data.offerBenefits)
   if (data.offerRemote !== undefined) app.offerRemote = cleanOptional(data.offerRemote)
+  if (data.archived !== undefined) app.archived = data.archived
+
+  if (data.activity) {
+    app.timeline.push({
+      at: data.activity.at ? new Date(data.activity.at) : new Date(),
+      type: data.activity.type,
+      note: cleanOptional(data.activity.note),
+      stageId: app.stageId,
+    })
+    if (data.activity.type === "sent" && !app.sentAt) {
+      app.sentAt = new Date()
+    }
+  }
 
   if (data.stageId !== undefined && data.stageId !== app.stageId) {
     const stage = await PipelineStage.findById(data.stageId)
-    app.timeline.push({ at: new Date(), stageName: stage?.name ?? "" })
+    app.timeline.push({
+      at: new Date(),
+      type: "stage_change",
+      stageName: stage?.name ?? "",
+      stageId: data.stageId,
+    })
     app.stageId = data.stageId
     if (stage?.name === "Отправлено" && !app.sentAt) {
       app.sentAt = new Date()
@@ -145,7 +116,7 @@ export async function PATCH(
 
   await app.save()
 
-  return NextResponse.json({ application: serializeFull(app) })
+  return NextResponse.json({ application: serializeApplication(app) })
 }
 
 export async function DELETE(

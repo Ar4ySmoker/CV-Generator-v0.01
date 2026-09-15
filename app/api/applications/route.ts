@@ -1,40 +1,14 @@
 import { NextResponse } from "next/server"
 
 import { applicationCreateSchema } from "@/lib/api-schemas"
+import { serializeApplication } from "@/lib/application-serialize"
 import { getUserId } from "@/lib/auth"
 import { connectDb } from "@/lib/db"
-import { Application, type ApplicationDoc } from "@/lib/models/application"
+import { Application } from "@/lib/models/application"
 import { listStages, startStageId } from "@/lib/pipeline"
 
 function cleanOptional<T>(v: T | null | undefined): T | undefined {
   return v == null ? undefined : v
-}
-
-export function serializeList(a: ApplicationDoc) {
-  return {
-    id: a._id.toString(),
-    company: a.company,
-    role: a.role,
-    country: a.country ?? null,
-    salaryMin: a.salaryMin ?? null,
-    salaryMax: a.salaryMax ?? null,
-    currency: a.currency ?? null,
-    sourceType: a.sourceType ?? null,
-    sourceUrl: a.sourceUrl ?? null,
-    cvId: a.cvId ?? null,
-    stageId: a.stageId,
-    sentChannel: a.sentChannel ?? null,
-    sentTo: a.sentTo ?? null,
-    sentAt: a.sentAt ?? null,
-    nextEventType: a.nextEventType ?? null,
-    nextEventAt: a.nextEventAt ?? null,
-    nextEventChannel: a.nextEventChannel ?? null,
-    offerSalary: a.offerSalary ?? null,
-    offerCurrency: a.offerCurrency ?? null,
-    archived: a.archived,
-    createdAt: a.createdAt,
-    updatedAt: a.updatedAt,
-  }
 }
 
 export async function GET(request: Request) {
@@ -57,7 +31,7 @@ export async function GET(request: Request) {
 
   const apps = await Application.find(filter).sort({ updatedAt: -1 })
 
-  return NextResponse.json({ applications: apps.map(serializeList) })
+  return NextResponse.json({ applications: apps.map(serializeApplication) })
 }
 
 export async function POST(request: Request) {
@@ -92,6 +66,7 @@ export async function POST(request: Request) {
     userId,
     company: data.company,
     role: data.role,
+    companyDomain: cleanOptional(data.companyDomain),
     country: cleanOptional(data.country),
     salaryMin: cleanOptional(data.salaryMin),
     salaryMax: cleanOptional(data.salaryMax),
@@ -100,13 +75,17 @@ export async function POST(request: Request) {
     sourceUrl: cleanOptional(data.sourceUrl),
     vacancyText: cleanOptional(data.vacancyText),
     notes: cleanOptional(data.notes),
-    contactName: cleanOptional(data.contactName),
-    contactEmail: cleanOptional(data.contactEmail),
+    contactIds: data.contactIds ?? [],
     stageId,
     timeline: [
-      { at: new Date(), stageName: startStage?.name ?? "Черновик" },
+      {
+        at: new Date(),
+        type: "stage_change",
+        stageName: startStage?.name ?? "Черновик",
+        stageId,
+      },
     ],
   })
 
-  return NextResponse.json({ application: serializeList(created) }, { status: 201 })
+  return NextResponse.json({ application: serializeApplication(created) }, { status: 201 })
 }

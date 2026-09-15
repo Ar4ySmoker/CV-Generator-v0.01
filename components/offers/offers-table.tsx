@@ -2,30 +2,32 @@
 
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
+import { Crown } from "lucide-react"
 
+import {
+  type ApplicationItem,
+  type Stage,
+} from "@/components/applications/types"
+import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 
-interface Stage {
-  id: string
-  name: string
-  terminalResult: string | null
-}
-
-interface App {
-  id: string
-  company: string
-  role: string
-  country: string | null
-  stageId: string
-  offerSalary: number | null
-  offerCurrency: string | null
-  offerBenefits: string | null
-  offerRemote: string | null
+function offerStatus(stage: Stage | undefined): string {
+  if (stage?.terminalResult === "accepted") return "Принят"
+  if (stage?.terminalResult === "rejected") return "Отклонён"
+  return "В ожидании"
 }
 
 export function OffersTable() {
   const [stages, setStages] = useState<Stage[]>([])
-  const [apps, setApps] = useState<App[]>([])
+  const [apps, setApps] = useState<ApplicationItem[]>([])
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
@@ -38,7 +40,7 @@ export function OffersTable() {
       setStages(d.stages)
     }
     if (appsRes.ok) {
-      const d = (await appsRes.json()) as { applications: App[] }
+      const d = (await appsRes.json()) as { applications: ApplicationItem[] }
       setApps(d.applications)
     }
     setLoading(false)
@@ -56,7 +58,7 @@ export function OffersTable() {
   const offers = apps
     .filter((a) => {
       const s = stageMap.get(a.stageId)
-      return s?.name === "Офер" || s?.terminalResult === "accepted"
+      return s?.name === "Офер" || s?.terminalResult === "accepted" || s?.terminalResult === "rejected"
     })
     .sort((a, b) => (b.offerSalary ?? 0) - (a.offerSalary ?? 0))
 
@@ -68,58 +70,74 @@ export function OffersTable() {
     )
   }
 
+  const bestSalary = Math.max(...offers.map((o) => o.offerSalary ?? 0))
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-base">Сравнение оферов</CardTitle>
       </CardHeader>
       <CardContent className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b text-left text-xs text-muted-foreground">
-              <th className="py-2 pr-4 font-medium">Компания</th>
-              <th className="py-2 pr-4 font-medium">Должность</th>
-              <th className="py-2 pr-4 font-medium">Страна</th>
-              <th className="py-2 pr-4 font-medium">ЗП</th>
-              <th className="py-2 pr-4 font-medium">Формат</th>
-              <th className="py-2 pr-4 font-medium">Бенефиты</th>
-            </tr>
-          </thead>
-          <tbody>
-            {offers.map((a) => (
-              <tr key={a.id} className="border-b last:border-0">
-                <td className="py-2 pr-4">
-                  <Link
-                    href={`/applications/${a.id}`}
-                    className="font-medium hover:underline"
-                  >
-                    {a.company}
-                  </Link>
-                </td>
-                <td className="py-2 pr-4">{a.role}</td>
-                <td className="py-2 pr-4">{a.country ?? "—"}</td>
-                <td className="py-2 pr-4 font-medium">
-                  {a.offerSalary != null ? (
-                    <>
-                      {a.offerSalary}{" "}
-                      {a.offerCurrency ? (
-                        <span className="text-muted-foreground">
-                          {a.offerCurrency}
-                        </span>
-                      ) : null}
-                    </>
-                  ) : (
-                    "—"
-                  )}
-                </td>
-                <td className="py-2 pr-4">{a.offerRemote ?? "—"}</td>
-                <td className="py-2 pr-4 text-muted-foreground">
-                  {a.offerBenefits ?? "—"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Компания</TableHead>
+              <TableHead>Должность</TableHead>
+              <TableHead>Страна</TableHead>
+              <TableHead>ЗП</TableHead>
+              <TableHead>Формат</TableHead>
+              <TableHead>Бенефиты</TableHead>
+              <TableHead>Статус</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {offers.map((a) => {
+              const stage = stageMap.get(a.stageId)
+              const isBest =
+                (a.offerSalary ?? 0) === bestSalary && bestSalary > 0
+              return (
+                <TableRow key={a.id} className={isBest ? "bg-primary/5" : undefined}>
+                  <TableCell>
+                    <Link
+                      href={`/applications/${a.id}`}
+                      className="font-medium hover:underline"
+                    >
+                      {a.company}
+                    </Link>
+                    {isBest ? (
+                      <Badge variant="secondary" className="ml-2">
+                        <Crown className="size-3" /> Лучший
+                      </Badge>
+                    ) : null}
+                  </TableCell>
+                  <TableCell>{a.role}</TableCell>
+                  <TableCell>{a.country ?? "—"}</TableCell>
+                  <TableCell className="font-medium">
+                    {a.offerSalary != null ? (
+                      <>
+                        {a.offerSalary}{" "}
+                        {a.offerCurrency ? (
+                          <span className="text-muted-foreground">
+                            {a.offerCurrency}
+                          </span>
+                        ) : null}
+                      </>
+                    ) : (
+                      "—"
+                    )}
+                  </TableCell>
+                  <TableCell>{a.offerRemote ?? "—"}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {a.offerBenefits ?? "—"}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="secondary">{offerStatus(stage)}</Badge>
+                  </TableCell>
+                </TableRow>
+              )
+            })}
+          </TableBody>
+        </Table>
       </CardContent>
     </Card>
   )

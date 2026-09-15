@@ -3,8 +3,9 @@ import { Geist_Mono, DM_Sans, Outfit } from "next/font/google"
 
 import "./globals.css"
 import { SessionProvider } from "@/components/auth/session-provider"
-import { SiteHeader } from "@/components/site-header"
 import { ThemeProvider } from "@/components/theme-provider"
+import { Toaster } from "@/components/ui/sonner"
+import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils";
 
 const outfitHeading = Outfit({subsets:['latin'],variable:'--font-heading'});
@@ -36,8 +37,10 @@ export default function RootLayout({
       <body>
         <SessionProvider>
           <ThemeProvider>
-            <SiteHeader />
-            {children}
+            <TooltipProvider>
+              {children}
+              <Toaster />
+            </TooltipProvider>
           </ThemeProvider>
         </SessionProvider>
       </body>

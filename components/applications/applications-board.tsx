@@ -3,137 +3,157 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { CalendarClock, Clock, Columns3, Plus, Search } from "lucide-react"
+import {
+  CalendarClock,
+  Clock,
+  Columns3,
+  ExternalLink,
+  MoreHorizontal,
+  Plus,
+  Search,
+} from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
+import { formatRelative, salaryRange, timeInStage } from "@/lib/format"
 
-interface Stage {
-  id: string
-  name: string
-  order: number
-  color: string
-  type: string
-  terminalResult: string | null
-}
-
-interface App {
-  id: string
-  company: string
-  role: string
-  country: string | null
-  salaryMin: number | null
-  salaryMax: number | null
-  currency: string | null
-  sourceType: string | null
-  stageId: string
-  sentChannel: string | null
-  sentTo: string | null
-  sentAt: string | null
-  nextEventType: string | null
-  nextEventAt: string | null
-  nextEventChannel: string | null
-  offerSalary: number | null
-  offerCurrency: string | null
-  updatedAt: string
-}
+import { CompanyLogo } from "./company-logo"
+import { PipelineBoard } from "./pipeline-board"
+import { StageBadge } from "./stage-badge"
+import {
+  INTERVIEW_LABELS,
+  type ApplicationItem,
+  type InterviewItem,
+  type Stage,
+} from "./types"
 
 type Mode = "kanban" | "upcoming" | "recent"
 
-function salaryText(a: App): string {
-  const cur = a.currency ?? ""
-  if (a.salaryMin != null || a.salaryMax != null) {
-    const min = a.salaryMin != null ? String(a.salaryMin) : ""
-    const max = a.salaryMax != null ? String(a.salaryMax) : ""
-    const range = max && min !== max ? `${min}–${max}` : min || max
-    return cur ? `${range} ${cur}` : range
+function nextScheduledEvent(
+  appId: string,
+  interviews: InterviewItem[]
+): InterviewItem | null {
+  const now = Date.now()
+  let best: InterviewItem | null = null
+  for (const iv of interviews) {
+    if (iv.applicationId !== appId || iv.status !== "scheduled") continue
+    if (new Date(iv.scheduledAt).getTime() < now) continue
+    if (!best || new Date(iv.scheduledAt).getTime() < new Date(best.scheduledAt).getTime()) {
+      best = iv
+    }
   }
-  return ""
+  return best
 }
 
-function sentText(a: App): string | null {
-  if (!a.sentAt) return null
-  const d = new Date(a.sentAt).toLocaleDateString("ru-RU")
-  return a.sentChannel ? `${a.sentChannel} · ${d}` : `Отправлено · ${d}`
-}
-
-function eventText(a: App): string | null {
-  if (!a.nextEventAt) return null
-  const mins = Math.round((new Date(a.nextEventAt).getTime() - Date.now()) / 60000)
-  const rel =
-    mins < 0
-      ? "прошло"
-      : mins < 60
-        ? `через ${mins} мин`
-        : mins < 1440
-          ? `через ${Math.round(mins / 60)} ч`
-          : `через ${Math.round(mins / 1440)} дн`
-  return `${a.nextEventType ?? "Событие"} · ${rel}`
-}
-
-function EventBadge({ app }: { app: App }) {
-  const text = eventText(app)
-  if (!text) return null
-  return (
-    <span className="w-fit rounded-md bg-primary/10 px-1.5 py-0.5 text-xs text-primary">
-      {text}
-    </span>
-  )
-}
-
-function AppCard({
+function ListRow({
   app,
-  onDragStart,
-  onDragEnd,
+  stages,
+  nextEvent,
+  onMove,
 }: {
-  app: App
-  onDragStart: (id: string) => void
-  onDragEnd: () => void
+  app: ApplicationItem
+  stages: Stage[]
+  nextEvent: InterviewItem | null
+  onMove: (appId: string, stageId: string) => void
 }) {
   const router = useRouter()
+  const stage = stages.find((s) => s.id === app.stageId)
+  const age = app.stageEnteredAt ? timeInStage(app.stageEnteredAt) : null
+
   return (
-    <div
-      draggable
-      onDragStart={(e) => {
-        e.dataTransfer.effectAllowed = "move"
-        onDragStart(app.id)
-      }}
-      onDragEnd={onDragEnd}
-      onClick={() => router.push(`/applications/${app.id}`)}
-      className="flex cursor-grab flex-col gap-1 rounded-xl border border-border/60 bg-card p-3 transition-shadow hover:shadow-sm active:cursor-grabbing"
-    >
-      <p className="text-sm font-medium leading-snug">{app.role}</p>
-      <p className="text-xs text-muted-foreground">{app.company}</p>
-      <EventBadge app={app} />
-      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-        {app.country ? <span>{app.country}</span> : null}
-        {salaryText(app) ? <span>{salaryText(app)}</span> : null}
-        {sentText(app) ? <span>{sentText(app)}</span> : null}
-      </div>
+    <div className="flex items-center gap-3 rounded-xl border border-border/60 p-3">
+      <button
+        type="button"
+        onClick={() => router.push(`/applications/${app.id}`)}
+        className="flex min-w-0 flex-1 items-center gap-3 text-left"
+      >
+        <CompanyLogo domain={app.companyDomain} name={app.company} />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium">{app.role}</p>
+          <p className="truncate text-xs text-muted-foreground">
+            {app.company}
+            {app.country ? ` · ${app.country}` : ""}
+          </p>
+        </div>
+        {age ? (
+          <span className="hidden items-center gap-1 text-xs text-muted-foreground sm:flex">
+            <Clock className="size-3" />
+            {age}
+          </span>
+        ) : null}
+        {nextEvent ? (
+          <span className="hidden items-center gap-1 text-xs text-primary sm:flex">
+            <CalendarClock className="size-3" />
+            {INTERVIEW_LABELS[nextEvent.type]} · {formatRelative(nextEvent.scheduledAt)}
+          </span>
+        ) : null}
+        <span className="hidden text-xs text-muted-foreground md:inline">
+          {salaryRange(app.salaryMin, app.salaryMax, app.currency)}
+        </span>
+        <StageBadge stage={stage} />
+      </button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon-sm" className="shrink-0">
+            <MoreHorizontal />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => router.push(`/applications/${app.id}`)}>
+            <ExternalLink />
+            Открыть
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel>Перевести в этап</DropdownMenuLabel>
+          {stages.map((s) => (
+            <DropdownMenuItem
+              key={s.id}
+              disabled={s.id === app.stageId}
+              onClick={() => onMove(app.id, s.id)}
+            >
+              <span className="size-2 rounded-full" style={{ backgroundColor: s.color }} />
+              {s.name}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   )
 }
 
 export function ApplicationsBoard() {
   const [stages, setStages] = useState<Stage[]>([])
-  const [apps, setApps] = useState<App[]>([])
+  const [apps, setApps] = useState<ApplicationItem[]>([])
+  const [interviews, setInterviews] = useState<InterviewItem[]>([])
   const [mode, setMode] = useState<Mode>("kanban")
   const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(true)
-  const [draggingId, setDraggingId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
-    const [stagesRes, appsRes] = await Promise.all([
+    const [stagesRes, appsRes, interviewsRes] = await Promise.all([
       fetch("/api/stages"),
       fetch("/api/applications"),
+      fetch("/api/interviews"),
     ])
     if (stagesRes.ok) {
       const d = (await stagesRes.json()) as { stages: Stage[] }
       setStages(d.stages)
     }
     if (appsRes.ok) {
-      const d = (await appsRes.json()) as { applications: App[] }
+      const d = (await appsRes.json()) as { applications: ApplicationItem[] }
       setApps(d.applications)
+    }
+    if (interviewsRes.ok) {
+      const d = (await interviewsRes.json()) as { interviews: InterviewItem[] }
+      setInterviews(d.interviews)
     }
     setLoading(false)
   }, [])
@@ -163,11 +183,11 @@ export function ApplicationsBoard() {
   const sorted = useMemo(() => {
     const list = [...filtered]
     if (mode === "upcoming") {
-      return list.sort((a, b) => {
-        const at = a.nextEventAt ? new Date(a.nextEventAt).getTime() : Infinity
-        const bt = b.nextEventAt ? new Date(b.nextEventAt).getTime() : Infinity
-        return at - bt
-      })
+      const eventAt = (a: ApplicationItem) => {
+        const ev = nextScheduledEvent(a.id, interviews)
+        return ev ? new Date(ev.scheduledAt).getTime() : Infinity
+      }
+      return list.sort((a, b) => eventAt(a) - eventAt(b))
     }
     if (mode === "recent") {
       return list.sort(
@@ -176,28 +196,26 @@ export function ApplicationsBoard() {
       )
     }
     return list
-  }, [filtered, mode])
+  }, [filtered, mode, interviews])
 
   const soon = useMemo(() => {
     const now = Date.now()
     const week = 7 * 24 * 3600 * 1000
-    return apps
-      .filter((a) => {
-        if (!a.nextEventAt) return false
-        const t = new Date(a.nextEventAt).getTime()
+    return interviews
+      .filter((iv) => {
+        if (iv.status !== "scheduled") return false
+        const t = new Date(iv.scheduledAt).getTime()
         return t >= now && t - now <= week
       })
       .sort(
         (a, b) =>
-          new Date(a.nextEventAt!).getTime() - new Date(b.nextEventAt!).getTime()
+          new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
       )
-  }, [apps])
+  }, [interviews])
 
   if (loading) {
     return <p className="text-sm text-muted-foreground">Загрузка…</p>
   }
-
-  const list = mode === "kanban" ? filtered : sorted
 
   return (
     <div className="flex flex-col gap-4">
@@ -248,103 +266,37 @@ export function ApplicationsBoard() {
           <span className="text-xs font-medium text-muted-foreground">
             Скоро:
           </span>
-          {soon.map((a) => (
+          {soon.map((iv) => (
             <Link
-              key={a.id}
-              href={`/applications/${a.id}`}
+              key={iv.id}
+              href={`/applications/${iv.applicationId}`}
               className="rounded-lg bg-card px-2 py-1 text-xs hover:bg-muted"
             >
-              {a.role} · {a.company} · {eventText(a)}
+              {iv.role ?? ""} · {iv.company ?? ""} ·{" "}
+              {INTERVIEW_LABELS[iv.type]} · {formatRelative(iv.scheduledAt)}
             </Link>
           ))}
         </div>
       ) : null}
 
       {mode === "kanban" ? (
-        <div className="flex gap-3 overflow-x-auto pb-4">
-          {stages.map((stage) => {
-            const items = filtered.filter((a) => a.stageId === stage.id)
-            return (
-              <div
-                key={stage.id}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault()
-                  if (draggingId) moveTo(draggingId, stage.id)
-                  setDraggingId(null)
-                }}
-                className="flex min-w-60 flex-1 flex-col gap-2 rounded-xl border border-border/60 bg-muted/30 p-2"
-              >
-                <div className="flex items-center gap-2 px-1 py-1">
-                  <span
-                    className="size-2 rounded-full"
-                    style={{ backgroundColor: stage.color }}
-                  />
-                  <span className="text-sm font-medium">{stage.name}</span>
-                  <span className="ml-auto text-xs text-muted-foreground">
-                    {items.length}
-                  </span>
-                </div>
-                <div className="flex flex-col gap-2">
-                  {items.map((a) => (
-                    <AppCard
-                      key={a.id}
-                      app={a}
-                      onDragStart={setDraggingId}
-                      onDragEnd={() => setDraggingId(null)}
-                    />
-                  ))}
-                </div>
-              </div>
-            )
-          })}
-        </div>
+        <PipelineBoard
+          stages={stages}
+          apps={filtered}
+          interviews={interviews}
+          onMove={moveTo}
+        />
       ) : (
         <div className="flex flex-col gap-1">
-          {list.map((a) => {
-            const stage = stages.find((s) => s.id === a.stageId)
-            return (
-              <div
-                key={a.id}
-                className="flex flex-wrap items-center gap-3 rounded-xl border border-border/60 p-3"
-              >
-                <Link
-                  href={`/applications/${a.id}`}
-                  className="min-w-0 flex-1"
-                >
-                  <p className="truncate text-sm font-medium">{a.role}</p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {a.company}
-                    {a.country ? ` · ${a.country}` : ""}
-                  </p>
-                </Link>
-                <EventBadge app={a} />
-                <span className="text-xs text-muted-foreground">
-                  {salaryText(a)}
-                </span>
-                {sentText(a) ? (
-                  <span className="text-xs text-muted-foreground">
-                    {sentText(a)}
-                  </span>
-                ) : null}
-                <select
-                  value={a.stageId}
-                  onChange={(e) => moveTo(a.id, e.target.value)}
-                  className="rounded-lg border border-input bg-input/30 px-2 py-1.5 text-xs"
-                >
-                  {stages.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-                <span
-                  className="size-2 rounded-full"
-                  style={{ backgroundColor: stage?.color }}
-                />
-              </div>
-            )
-          })}
+          {sorted.map((app) => (
+            <ListRow
+              key={app.id}
+              app={app}
+              stages={stages}
+              nextEvent={nextScheduledEvent(app.id, interviews)}
+              onMove={moveTo}
+            />
+          ))}
         </div>
       )}
     </div>
