@@ -73,6 +73,57 @@ const SOURCES = [
   "Другое",
 ]
 
+function NotesCard({
+  initial,
+  onSave,
+}: {
+  initial: string
+  onSave: (value: string) => Promise<void> | void
+}) {
+  const [value, setValue] = useState(initial)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  const dirty = value !== initial
+
+  async function save() {
+    setSaving(true)
+    try {
+      await onSave(value)
+      setSaved(true)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Заметки</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-2">
+        <Textarea
+          value={value}
+          onChange={(e) => {
+            setValue(e.target.value)
+            setSaved(false)
+          }}
+          placeholder="Договорённости, детали, что ответили…"
+          className="min-h-32"
+        />
+        <div className="flex items-center gap-2">
+          <Button size="sm" onClick={save} disabled={saving || !dirty}>
+            {saving ? "Сохраняем…" : "Сохранить"}
+          </Button>
+          {saved && !dirty ? (
+            <span className="text-xs text-muted-foreground">Сохранено</span>
+          ) : null}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 export function ApplicationDetail({ applicationId }: { applicationId: string }) {
   const router = useRouter()
   const [app, setApp] = useState<ApplicationItem | null>(null)
@@ -564,23 +615,10 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
         </TabsContent>
 
         <TabsContent value="notes" className="pt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Заметки</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Textarea
-                key={app.notes ?? ""}
-                defaultValue={app.notes ?? ""}
-                placeholder="Договорённости, детали, что ответили…"
-                onBlur={(e) => {
-                  if (e.target.value !== (app.notes ?? "")) {
-                    patch({ notes: e.target.value })
-                  }
-                }}
-              />
-            </CardContent>
-          </Card>
+          <NotesCard
+            initial={app.notes ?? ""}
+            onSave={(v) => patch({ notes: v })}
+          />
         </TabsContent>
 
         <TabsContent value="cv" className="pt-4">

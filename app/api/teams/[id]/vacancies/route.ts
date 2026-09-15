@@ -7,27 +7,8 @@ import { PipelineStage } from "@/lib/models/pipeline-stage"
 import { Team } from "@/lib/models/team"
 import { User } from "@/lib/models/user"
 import { VacancyFeedback } from "@/lib/models/vacancy-feedback"
+import { stageOutcome } from "@/lib/stage-outcome"
 import { activeMemberIds, isTeamMember, normalizeCompany } from "@/lib/team"
-
-type Outcome = "in-progress" | "offer" | "accepted" | "rejected" | "no-response"
-
-function outcomeOf(stage: PipelineStageDocLike | undefined): Outcome {
-  if (!stage) return "in-progress"
-  if (stage.type === "terminal") {
-    if (stage.terminalResult === "accepted") return "accepted"
-    if (stage.terminalResult === "rejected") return "rejected"
-    if (stage.terminalResult === "no-response") return "no-response"
-    return "in-progress"
-  }
-  if (stage.name === "Офер") return "offer"
-  return "in-progress"
-}
-
-type PipelineStageDocLike = {
-  name: string
-  type: string
-  terminalResult?: string | null
-}
 
 export async function GET(
   _request: Request,
@@ -94,7 +75,7 @@ export async function GET(
         memberName: u?.name || u?.email || "Участник",
         role: a.role,
         stage: stage?.name ?? "—",
-        outcome: outcomeOf(stage),
+        outcome: stageOutcome(stage),
         salary: a.shareSalary
           ? {
               min: a.salaryMin ?? null,

@@ -83,3 +83,47 @@ export interface Vacancy {
   applicants: VacancyApplicant[]
   feedback: VacancyFeedback[]
 }
+
+export interface ApplicantTimelineEvent {
+  at: string
+  type: string
+  stageName: string | null
+  note: string | null
+}
+
+export interface CompanyApplicant {
+  applicationId: string
+  memberId: string
+  memberName: string
+  memberEmail: string | null
+  role: string
+  stage: string
+  outcome: Outcome
+  timeline: ApplicantTimelineEvent[]
+  salary: { min: number | null; max: number | null; currency: string | null } | null
+  offer: { salary: number; currency: string | null } | null
+  notes: string | null
+  updatedAt: string
+}
+
+export interface CompanyVacancy {
+  sourceType: string | null
+  sourceUrl: string | null
+  vacancyText: string | null
+}
+
+export interface CompanyDetail {
+  company: string
+  companyKey: string
+  vacancy: CompanyVacancy | null
+  applicants: CompanyApplicant[]
+  feedback: VacancyFeedback[]
+}
+
+export interface TeamMessageItem {
+  id: string
+  authorId: string
+  authorName: string
+  text: string
+  createdAt: string
+}
