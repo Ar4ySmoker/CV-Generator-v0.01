@@ -220,7 +220,7 @@ export function ApplicationsBoard() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="relative w-full max-w-xs">
+        <div className="relative w-full sm:max-w-xs">
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             className="pl-9"
@@ -229,28 +229,29 @@ export function ApplicationsBoard() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full items-center justify-between gap-2 sm:w-auto">
           <div className="flex rounded-xl border border-border/60 p-1">
             <Button
               variant={mode === "kanban" ? "secondary" : "ghost"}
               size="sm"
               onClick={() => setMode("kanban")}
             >
-              <Columns3 /> Воронка
+              <Columns3 /> <span className="hidden sm:inline">Воронка</span>
             </Button>
             <Button
               variant={mode === "upcoming" ? "secondary" : "ghost"}
               size="sm"
               onClick={() => setMode("upcoming")}
             >
-              <CalendarClock /> События
+              <CalendarClock />{" "}
+              <span className="hidden sm:inline">События</span>
             </Button>
             <Button
               variant={mode === "recent" ? "secondary" : "ghost"}
               size="sm"
               onClick={() => setMode("recent")}
             >
-              <Clock /> Недавние
+              <Clock /> <span className="hidden sm:inline">Недавние</span>
             </Button>
           </div>
           <Button asChild size="sm">

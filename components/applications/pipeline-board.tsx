@@ -27,7 +27,7 @@ function Column({
         e.preventDefault()
         onDrop(stage.id)
       }}
-      className="flex min-w-60 flex-1 flex-col gap-2 rounded-xl border border-border/60 bg-muted/30 p-2"
+      className="flex min-w-[85%] snap-center flex-col gap-2 rounded-xl border border-border/60 bg-muted/30 p-2 sm:min-w-60 sm:flex-1 sm:snap-start"
     >
       <div className="flex items-center gap-2 px-1 py-1">
         <span
@@ -96,7 +96,7 @@ export function PipelineBoard({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex gap-3 overflow-x-auto pb-4">
+      <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-4 sm:snap-none">
         {active.map((stage) => (
           <Column
             key={stage.id}
@@ -118,7 +118,7 @@ export function PipelineBoard({
           <p className="text-xs font-medium text-muted-foreground">
             Завершённые
           </p>
-          <div className="flex gap-3 overflow-x-auto pb-4">
+          <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-4 sm:snap-none">
             {terminal.map((stage) => (
               <Column
                 key={stage.id}
