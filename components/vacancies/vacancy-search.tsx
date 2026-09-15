@@ -150,10 +150,12 @@ export function VacancySearch({
             </Button>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Switch checked={remote} onCheckedChange={setRemote} />
-            <Label>Только удалёнка</Label>
-            <div className="ml-auto flex flex-wrap gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2">
+              <Switch checked={remote} onCheckedChange={setRemote} />
+              <Label>Только удалёнка</Label>
+            </div>
+            <div className="flex flex-wrap gap-1">
               {CHIPS.map((c) => (
                 <button
                   key={c}
@@ -209,7 +211,7 @@ export function VacancySearch({
                     >
                       <div className="flex flex-wrap items-start gap-2">
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium">{v.title}</p>
+                          <p className="text-sm font-medium break-words">{v.title}</p>
                           <p className="truncate text-xs text-muted-foreground">
                             {v.company}
                             {v.location ? ` · ${v.location}` : ""}

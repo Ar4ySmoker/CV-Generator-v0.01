@@ -1,5 +1,7 @@
+import { habrProvider } from "./habr"
 import { hhProvider } from "./hh"
 import { remoteOkProvider } from "./remoteok"
+import { trudvsemProvider } from "./trudvsem"
 import type {
   SearchOptions,
   SourceStatus,
@@ -17,37 +19,33 @@ export async function searchVacancies(
   q: string,
   opts: SearchOptions
 ): Promise<VacancySearchResult> {
-  const [remoteOk, hh] = await Promise.allSettled([
+  const [remoteOk, hh, habr, trudvsem] = await Promise.allSettled([
     remoteOkProvider.search(q, opts),
     hhProvider.search(q, opts),
+    habrProvider.search(q, opts),
+    trudvsemProvider.search(q, opts),
   ])
 
   const results: SourceVacancy[] = []
   const sources: SourceStatus[] = []
 
-  if (remoteOk.status === "fulfilled") {
-    results.push(...remoteOk.value)
-    sources.push({ id: "remoteok", name: "Remote OK", ok: true })
-  } else {
-    sources.push({
-      id: "remoteok",
-      name: "Remote OK",
-      ok: false,
-      error: errorMessage(remoteOk.reason),
-    })
+  const collect = (
+    outcome: PromiseSettledResult<SourceVacancy[]>,
+    id: SourceStatus["id"],
+    name: string
+  ) => {
+    if (outcome.status === "fulfilled") {
+      results.push(...outcome.value)
+      sources.push({ id, name, ok: true })
+    } else {
+      sources.push({ id, name, ok: false, error: errorMessage(outcome.reason) })
+    }
   }
 
-  if (hh.status === "fulfilled") {
-    results.push(...hh.value)
-    sources.push({ id: "hh", name: "hh.ru", ok: true })
-  } else {
-    sources.push({
-      id: "hh",
-      name: "hh.ru",
-      ok: false,
-      error: errorMessage(hh.reason),
-    })
-  }
+  collect(remoteOk, "remoteok", "Remote OK")
+  collect(hh, "hh", "hh.ru")
+  collect(habr, "habr", "Хабр Карьера")
+  collect(trudvsem, "trudvsem", "Работа России")
 
   return { results, sources }
 }

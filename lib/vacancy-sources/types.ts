@@ -1,4 +1,4 @@
-export type VacancySourceId = "hh" | "remoteok"
+export type VacancySourceId = "hh" | "remoteok" | "habr" | "trudvsem"
 
 export interface SourceVacancy {
   externalId: string
