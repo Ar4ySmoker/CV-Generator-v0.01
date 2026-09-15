@@ -1,10 +1,9 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
-import { ExternalLink, Plus, RefreshCw, Send, Trash } from "lucide-react"
+import { useCallback, useEffect, useState, type ReactNode } from "react"
+import { ExternalLink, ChevronDown, Plus, RefreshCw, Send, Trash } from "lucide-react"
 import { toast } from "sonner"
 
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -25,14 +24,57 @@ interface Post {
   postedAt: string | null
 }
 
+function channelColor(name: string): string {
+  let h = 0
+  for (let i = 0; i < name.length; i++) {
+    h = (h * 31 + name.charCodeAt(i)) >>> 0
+  }
+  return `hsl(${h % 360}, 55%, 45%)`
+}
+
 function timeLabel(iso: string | null): string {
   if (!iso) return ""
-  return new Date(iso).toLocaleString("ru-RU", {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
+  const d = new Date(iso)
+  const now = new Date()
+  if (d.toDateString() === now.toDateString()) {
+    return d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })
+  }
+  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" })
+}
+
+function renderLinks(text: string): ReactNode {
+  const parts = text.split(/(https?:\/\/[^\s]+|t\.me\/[^\s]+)/g)
+  return parts.map((part, i) => {
+    if (/^(https?:\/\/|t\.me\/)/.test(part)) {
+      const href = part.startsWith("http") ? part : `https://${part}`
+      return (
+        <a
+          key={i}
+          href={href}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="text-primary underline decoration-primary/40 underline-offset-2 hover:opacity-80"
+        >
+          {part}
+        </a>
+      )
+    }
+    return <span key={i}>{part}</span>
   })
+}
+
+function groupPosts(posts: Post[]): { channel: string; posts: Post[] }[] {
+  const byChannel = new Map<string, Post[]>()
+  const order: string[] = []
+  for (const p of posts) {
+    if (!byChannel.has(p.channel)) {
+      byChannel.set(p.channel, [])
+      order.push(p.channel)
+    }
+    byChannel.get(p.channel)!.push(p)
+  }
+  return order.map((c) => ({ channel: c, posts: byChannel.get(c)! }))
 }
 
 export function TelegramFeed() {
@@ -43,6 +85,16 @@ export function TelegramFeed() {
   const [loading, setLoading] = useState(true)
   const [newChannel, setNewChannel] = useState("")
   const [adding, setAdding] = useState(false)
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+
+  function toggleChannel(channel: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(channel)) next.delete(channel)
+      else next.add(channel)
+      return next
+    })
+  }
 
   const loadChannels = useCallback(async () => {
     const res = await fetch("/api/telegram/channels")
@@ -191,25 +243,83 @@ export function TelegramFeed() {
       ) : (
         <ScrollArea className="max-h-[70vh]">
           <div className="flex flex-col gap-2">
-            {posts.map((p) => (
-              <div key={p.id} className="flex flex-col gap-1.5 rounded-xl border border-border/60 p-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="secondary">@{p.channel}</Badge>
-                  <span className="ml-auto text-xs text-muted-foreground">
-                    {timeLabel(p.postedAt)}
-                  </span>
+            {groupPosts(posts).map(({ channel, posts: channelPosts }) => {
+              const isOpen = expanded.has(channel)
+              const latest = channelPosts[0]?.text ?? ""
+              return (
+                <div key={channel} className="rounded-xl border border-border/60">
+                  <button
+                    type="button"
+                    onClick={() => toggleChannel(channel)}
+                    className="flex w-full flex-col gap-1 p-3 text-left"
+                  >
+                    <div className="flex w-full items-center gap-3">
+                      <div
+                        className="flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"
+                        style={{ backgroundColor: channelColor(channel) }}
+                      >
+                        {channel.slice(0, 1).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <span
+                          className="text-sm font-medium"
+                          style={{ color: channelColor(channel) }}
+                        >
+                          @{channel}
+                        </span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {channelPosts.length}
+                      </span>
+                      <ChevronDown
+                        className={`size-4 text-muted-foreground transition-transform ${
+                          isOpen ? "rotate-180" : ""
+                        }`}
+                      />
+                    </div>
+                    {!isOpen && latest ? (
+                      <p className="line-clamp-1 pl-12 text-xs text-muted-foreground">
+                        {latest}
+                      </p>
+                    ) : null}
+                  </button>
+
+                  {isOpen ? (
+                    <div className="flex flex-col gap-4 border-t border-border/60 p-3">
+                      {channelPosts.map((p) => (
+                        <div key={p.id} className="flex items-start gap-3">
+                          <div
+                            className="flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"
+                            style={{ backgroundColor: channelColor(p.channel) }}
+                          >
+                            {p.channel.slice(0, 1).toUpperCase()}
+                          </div>
+                          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                            <div className="w-fit max-w-full rounded-2xl rounded-tl-md bg-muted px-3 py-2">
+                              <p className="whitespace-pre-wrap break-words text-sm">
+                                {renderLinks(p.text)}
+                              </p>
+                              <div className="mt-1 flex items-center justify-end gap-1.5 text-[11px] text-muted-foreground">
+                                {timeLabel(p.postedAt)}
+                                <a
+                                  href={p.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  title="Открыть пост"
+                                  className="text-muted-foreground hover:text-foreground"
+                                >
+                                  <ExternalLink className="size-3" />
+                                </a>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
-                <p className="whitespace-pre-wrap text-sm">{p.text}</p>
-                <a
-                  href={p.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex w-fit items-center gap-1 text-xs text-primary hover:underline"
-                >
-                  <ExternalLink className="size-3.5" /> Открыть пост
-                </a>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </ScrollArea>
       )}
