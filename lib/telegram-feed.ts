@@ -3,10 +3,16 @@ import * as cheerio from "cheerio"
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
 
+export interface TelegramSegment {
+  text: string
+  url: string | null
+}
+
 export interface TelegramPost {
   id: string
   channel: string
   text: string
+  segments: TelegramSegment[]
   url: string
   postedAt: string | null
 }
@@ -21,6 +27,28 @@ export function normalizeChannelUsername(raw: string): string {
     .replace(/^https?:\/\/t\.me\/(s\/)?/, "")
     .replace(/^t\.me\/(s\/)?/, "")
     .replace(/\/$/, "")
+}
+
+function extractSegments(
+  $: cheerio.CheerioAPI,
+  $text: cheerio.Cheerio<import("domhandler").AnyNode>
+): TelegramSegment[] {
+  const segments: TelegramSegment[] = []
+  $text.contents().each((_, node) => {
+    if (node.type === "text") {
+      segments.push({ text: node.data, url: null })
+    } else if (node.type === "tag") {
+      if (node.name === "br") {
+        segments.push({ text: "\n", url: null })
+      } else if (node.name === "a") {
+        const href = ($(node).attr("href") ?? "").trim()
+        segments.push({ text: $(node).text(), url: href || null })
+      } else {
+        segments.push({ text: $(node).text(), url: null })
+      }
+    }
+  })
+  return segments
 }
 
 export async function fetchChannelPosts(
@@ -44,20 +72,17 @@ export async function fetchChannelPosts(
   const posts: TelegramPost[] = []
   $(".tgme_widget_message").each((_, el) => {
     const $el = $(el)
-    const html = $el.find(".tgme_widget_message_text").html() ?? ""
-    const text = html
-      .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/<\/p>|<\/div>/gi, "\n")
-      .replace(/<[^>]+>/g, "")
-      .replace(/&nbsp;/gi, " ")
-      .replace(/&amp;/gi, "&")
-      .replace(/&lt;/gi, "<")
-      .replace(/&gt;/gi, ">")
-      .replace(/&quot;/gi, '"')
-      .replace(/&#39;|&#x27;/gi, "'")
+    const $text = $el.find(".tgme_widget_message_text")
+    if ($text.length === 0) return
+
+    const segments = extractSegments($, $text)
+    const text = segments
+      .map((s) => s.text)
+      .join("")
       .replace(/\n{3,}/g, "\n\n")
       .trim()
     if (!text) return
+
     const link = $el.find("a.tgme_widget_message_date")
     const href = link.attr("href") ?? ""
     const postedAt = link.find("time").attr("datetime") ?? null
@@ -70,6 +95,7 @@ export async function fetchChannelPosts(
       id: href || `${channel}-${posts.length}`,
       channel,
       text,
+      segments,
       url,
       postedAt,
     })

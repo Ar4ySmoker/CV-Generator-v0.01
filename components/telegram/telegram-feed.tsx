@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState, type ReactNode } from "react"
+import { Fragment, useCallback, useEffect, useState, type ReactNode } from "react"
 import { ExternalLink, ChevronDown, Plus, RefreshCw, Send, Trash } from "lucide-react"
 import { toast } from "sonner"
 
@@ -20,6 +20,7 @@ interface Post {
   id: string
   channel: string
   text: string
+  segments: { text: string; url: string | null }[]
   url: string
   postedAt: string | null
 }
@@ -57,14 +58,15 @@ function toHref(raw: string): string {
   return /^https?:\/\//.test(cleaned) ? cleaned : `https://${cleaned}`
 }
 
-function renderLinks(text: string): ReactNode {
+function renderLinks(text: string, prefix = ""): ReactNode {
   const parts = text.split(LINK_PATTERN)
   return parts.map((part, i) => {
+    const key = `${prefix}${i}`
     if (IS_LINK.test(part)) {
       const cleaned = cleanUrl(part)
       return (
         <a
-          key={i}
+          key={key}
           href={toHref(part)}
           target="_blank"
           rel="noreferrer"
@@ -75,7 +77,29 @@ function renderLinks(text: string): ReactNode {
         </a>
       )
     }
-    return <span key={i}>{part}</span>
+    return <span key={key}>{part}</span>
+  })
+}
+
+function renderSegments(
+  segments: { text: string; url: string | null }[]
+): ReactNode {
+  return segments.map((seg, i) => {
+    if (seg.url) {
+      return (
+        <a
+          key={`s${i}`}
+          href={seg.url}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="text-primary underline decoration-primary/40 underline-offset-2 hover:opacity-80"
+        >
+          {seg.text}
+        </a>
+      )
+    }
+    return <Fragment key={`s${i}`}>{renderLinks(seg.text, `s${i}-`)}</Fragment>
   })
 }
 
@@ -312,7 +336,7 @@ export function TelegramFeed() {
                           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                             <div className="w-fit max-w-full rounded-2xl rounded-tl-md bg-muted px-3 py-2">
                               <p className="whitespace-pre-wrap break-words text-sm">
-                                {renderLinks(p.text)}
+                                {renderSegments(p.segments)}
                               </p>
                               <div className="mt-1 flex items-center justify-end gap-1.5 text-[11px] text-muted-foreground">
                                 {timeLabel(p.postedAt)}

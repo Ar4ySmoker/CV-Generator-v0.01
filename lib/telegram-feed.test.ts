@@ -27,22 +27,29 @@ describe("normalizeChannelUsername", () => {
 })
 
 describe("fetchChannelPosts", () => {
-  it("preserves <br> as newlines", async () => {
+  it("preserves <br> as newlines and extracts links", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
         ok: true,
         text: async () => `
           <div class="tgme_widget_message">
-            <div class="tgme_widget_message_text">Line1<br/>Line2 <a href="https://example.com">link</a></div>
+            <div class="tgme_widget_message_text"><a href="https://hh.ru/vacancy/1">Младший маркетолог (Junior+)</a><br/>Line2 <a href="https://example.com">link</a></div>
             <a class="tgme_widget_message_date" href="https://t.me/ch/1"><time datetime="2026-01-01T10:00:00+00:00">1 Jan</time></a>
           </div>`,
       })
     )
     const posts = await fetchChannelPosts("ch", true)
     expect(posts).toHaveLength(1)
-    expect(posts[0].text).toBe("Line1\nLine2 link")
+    expect(posts[0].text).toBe("Младший маркетолог (Junior+)\nLine2 link")
     expect(posts[0].url).toBe("https://t.me/ch/1")
+
+    const linked = posts[0].segments.filter((s) => s.url)
+    expect(linked.map((s) => s.url)).toEqual([
+      "https://hh.ru/vacancy/1",
+      "https://example.com",
+    ])
+    expect(linked[0].text).toBe("Младший маркетолог (Junior+)")
   })
 })
 
