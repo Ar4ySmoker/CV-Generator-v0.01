@@ -3,6 +3,7 @@ import type { NextAuthConfig } from "next-auth"
 const protectedPrefixes = [
   "/dashboard",
   "/vacancies",
+  "/telegram",
   "/applications",
   "/offers",
   "/teams",

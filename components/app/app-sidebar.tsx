@@ -13,6 +13,7 @@ import {
   KeyRound,
   LayoutDashboard,
   LogOut,
+  Send,
   UserRound,
   Users,
   UsersRound,
@@ -43,6 +44,7 @@ interface NavItem {
 const NAV: NavItem[] = [
   { title: "Дашборд", href: "/dashboard", icon: LayoutDashboard },
   { title: "Вакансии", href: "/vacancies", icon: BriefcaseBusiness },
+  { title: "Telegram", href: "/telegram", icon: Send },
   { title: "Отклики", href: "/applications", icon: Briefcase },
   { title: "Оферы", href: "/offers", icon: Handshake },
   { title: "Команды", href: "/teams", icon: UsersRound },

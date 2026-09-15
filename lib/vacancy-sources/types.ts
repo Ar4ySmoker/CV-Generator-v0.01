@@ -1,4 +1,4 @@
-export type VacancySourceId = "hh" | "remoteok" | "habr" | "trudvsem"
+export type VacancySourceId = "hh" | "remoteok" | "habr" | "trudvsem" | "jooble"
 
 export interface SourceVacancy {
   externalId: string
@@ -19,6 +19,7 @@ export interface SourceVacancy {
 
 export interface SearchOptions {
   remote: boolean
+  sources?: VacancySourceId[]
 }
 
 export interface SourceStatus {

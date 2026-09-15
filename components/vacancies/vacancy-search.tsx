@@ -21,9 +21,20 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
 
 import { salaryRange } from "@/lib/format"
-import type { SourceStatus, SourceVacancy } from "@/lib/vacancy-sources"
+import type {
+  SourceStatus,
+  SourceVacancy,
+  VacancySourceId,
+} from "@/lib/vacancy-sources"
 
 const CHIPS = ["Frontend", "Backend", "Python", "DevOps", "Data", "Mobile", "QA"]
+
+const ALL_SOURCES: { id: VacancySourceId; label: string }[] = [
+  { id: "hh", label: "hh.ru" },
+  { id: "habr", label: "Хабр Карьера" },
+  { id: "remoteok", label: "Remote OK" },
+  { id: "trudvsem", label: "Работа России" },
+]
 
 export function VacancySearch({
   open,
@@ -37,19 +48,37 @@ export function VacancySearch({
   const router = useRouter()
   const [q, setQ] = useState("")
   const [remote, setRemote] = useState(true)
+  const [activeSources, setActiveSources] = useState<VacancySourceId[]>([
+    "hh",
+    "habr",
+    "remoteok",
+    "trudvsem",
+  ])
   const [results, setResults] = useState<SourceVacancy[]>([])
   const [sources, setSources] = useState<SourceStatus[]>([])
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
   const [done, setDone] = useState<Set<string>>(new Set())
 
-  async function search() {
+  function toggleSource(id: VacancySourceId) {
+    const next = activeSources.includes(id)
+      ? activeSources.filter((s) => s !== id)
+      : [...activeSources, id]
+    setActiveSources(next)
+    search(next)
+  }
+
+  async function search(sourcesOverride?: VacancySourceId[]) {
     setLoading(true)
     setDone(new Set())
     try {
+      const src = sourcesOverride ?? activeSources
       const params = new URLSearchParams()
       if (q.trim()) params.set("q", q.trim())
       if (!remote) params.set("remote", "0")
+      if (src.length > 0) {
+        params.set("source", src.join(","))
+      }
       const res = await fetch(`/api/vacancies/search?${params.toString()}`)
       if (res.ok) {
         const d = (await res.json()) as {
@@ -124,11 +153,11 @@ export function VacancySearch({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="max-h-[90vh] overflow-x-hidden overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Найти вакансии</DialogTitle>
           <DialogDescription>
-            Живой поиск по hh.ru и Remote OK. По умолчанию — IT с удалёнкой.
+            Живой поиск по hh.ru, Хабр Карьере, Remote OK и Работе России.
           </DialogDescription>
         </DialogHeader>
 
@@ -144,7 +173,7 @@ export function VacancySearch({
                 onKeyDown={(e) => e.key === "Enter" && search()}
               />
             </div>
-            <Button size="sm" onClick={search} disabled={loading}>
+            <Button size="sm" onClick={() => search()} disabled={loading}>
               {loading ? <LoaderCircle className="animate-spin" /> : <Search />}
               Искать
             </Button>
@@ -170,6 +199,27 @@ export function VacancySearch({
                 </button>
               ))}
             </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs text-muted-foreground">Источники:</span>
+            {ALL_SOURCES.map((s) => {
+              const active = activeSources.includes(s.id)
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => toggleSource(s.id)}
+                  className={`rounded-full border px-2.5 py-0.5 text-xs transition-colors ${
+                    active
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border/60 text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {s.label}
+                </button>
+              )
+            })}
           </div>
 
           {sources.some((s) => !s.ok) ? (
