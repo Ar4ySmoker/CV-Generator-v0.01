@@ -88,7 +88,7 @@ docs/                             # ARCHITECTURE.md, ROADMAP.md
 | `profiles` | `userId`, `label`, `data` (CvFormValues, Mixed), `isDefault` |
 | `generatedcvs` | `userId`, `applicationId?`, `profileId?`, `adaptedCv` (AdaptedCv), `inputSnapshot` (CvFormValues), `lang` |
 | `pipelinestages` | `userId`, `name`, `order`, `color`, `type` (`start`/`active`/`terminal`), `terminalResult?` (`rejected`/`no-response`/`accepted`) |
-| `applications` | `userId`, `company`, `role`, `country?`, `salaryMin/Max?`, `currency?`, `sourceType?`, `sourceUrl?`, `vacancyText?`, `cvId?`, `stageId`, `timeline[]`, `notes?`, `contactName?`, `contactEmail?`, `sentAt?`, `offerSalary?`, `offerCurrency?`, `offerBenefits?`, `offerRemote?`, `archived` |
+| `applications` | `userId`, `company`, `role`, `country?`, `salaryMin/Max?`, `currency?`, `sourceType?`, `sourceUrl?`, `vacancyText?`, `cvId?`, `stageId`, `timeline[]`, `notes?`, `contactName?`, `contactEmail?`, `sentChannel?`, `sentTo?`, `sentAt?`, `offerSalary?`, `offerCurrency?`, `offerBenefits?`, `offerRemote?`, `archived` |
 
 > **Важно:** в моделях Mongoose нельзя использовать имя поля `model` — конфликтует с
 > встроенным методом документа. В `ApiKey` поле называется `modelName` (наружу — `model`).
@@ -174,18 +174,24 @@ senior-стиля. Ответ — строгий JSON (валидируется 
    `authorized` (неимпорт mongoose в edge — для этого `auth.config.ts`).
 
 ### Генерация CV
-1. `Generator` → `ModeSelector` → (дисклеймер для generate_experience) → `CvForm`.
-2. `CvForm` собирает `CvFormValues`, на submit → `POST /api/generate`.
+1. `Generator` → блок **«Есть вакансия?»** (ссылка/текст, опционально) → `ModeSelector`
+   → (дисклеймер для generate_experience) → `CvForm`.
+2. `CvForm` собирает `CvFormValues` (шаг «Вакансия» префиллен из блока), на submit →
+   `POST /api/generate`.
 3. Роут: валидация → (вакансия URL → `fetchVacancyText`, при блокировке 422) →
    `resolveProvider` → `generateCv` → опц. сохранение → `buildDocx` → файл.
 4. Клиент скачивает blob; авторизованному предлагается «Сохранить как профиль».
 
 ### Трекинг отклика
 1. `/applications/new` → `POST /api/applications` (этап «Старт»).
-2. `/applications` — kanban (drag-and-drop → `PATCH stageId`) или список.
+2. `/applications` — kanban (drag-and-drop → `PATCH stageId`) или список; на карточке
+   видно канал/дату отправки.
 3. `/applications/[id]` — смена этапа (таймлайн), заметки, контакты, офер,
    генерация CV с привязкой (`save:true, applicationId`).
-4. `/offers` — фильтр этапов «Офер»/«Принято» и сравнение по ЗП.
+4. **Фиксация отправки** — блок «Отправка CV»: канал
+   (Email/Telegram/LinkedIn/Messenger/Другое), «кому», «когда» → `PATCH` пишет
+   `sentChannel`/`sentTo`/`sentAt` и двигает на этап «Отправлено».
+5. `/offers` — фильтр этапов «Офер»/«Принято» и сравнение по ЗП.
 
 ## 7. Как что-то добавить/поменять
 

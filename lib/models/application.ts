@@ -24,6 +24,8 @@ export interface ApplicationDoc {
   notes?: string
   contactName?: string
   contactEmail?: string
+  sentChannel?: string
+  sentTo?: string
   sentAt?: Date
   offerSalary?: number
   offerCurrency?: string
@@ -61,6 +63,8 @@ const ApplicationSchema = new Schema<ApplicationDoc>(
     notes: { type: String },
     contactName: { type: String },
     contactEmail: { type: String },
+    sentChannel: { type: String },
+    sentTo: { type: String },
     sentAt: { type: Date },
     offerSalary: { type: Number },
     offerCurrency: { type: String },

@@ -45,6 +45,8 @@ export const applicationUpdateSchema = z.object({
   notes: optionalStr,
   contactName: optionalStr,
   contactEmail: optionalStr,
+  sentChannel: optionalStr,
+  sentTo: optionalStr,
   stageId: z.string().optional(),
   sentAt: z.string().nullable().optional(),
   offerSalary: optionalNum,

@@ -143,6 +143,7 @@ export function CvForm({
   onBack,
   initialValues,
   vacancyText,
+  initialVacancy,
   generateExtras,
   allowSaveProfile = false,
   onGenerated,
@@ -156,6 +157,7 @@ export function CvForm({
   onBack: () => void
   initialValues?: CvFormValues
   vacancyText?: string
+  initialVacancy?: { source: "text" | "url"; text?: string; url?: string }
   generateExtras?: { save?: boolean; applicationId?: string; profileId?: string }
   allowSaveProfile?: boolean
   onGenerated?: () => void
@@ -179,11 +181,17 @@ export function CvForm({
 
   const defaultValues = useMemo<CvFormValues>(() => {
     const base = initialValues ? { ...initialValues } : DEFAULT_VALUES
-    if (vacancyText) {
+    if (initialVacancy && (initialVacancy.text?.trim() || initialVacancy.url?.trim())) {
+      base.vacancy = {
+        source: initialVacancy.source,
+        text: initialVacancy.text ?? "",
+        url: initialVacancy.url ?? "",
+      }
+    } else if (vacancyText) {
       base.vacancy = { source: "text", text: vacancyText }
     }
     return base
-  }, [initialValues, vacancyText])
+  }, [initialValues, vacancyText, initialVacancy])
 
   const form = useForm<CvFormValues>({
     resolver: zodResolver(cvFormSchema),

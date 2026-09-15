@@ -28,6 +28,8 @@ function serializeFull(a: ApplicationDoc) {
     notes: a.notes ?? null,
     contactName: a.contactName ?? null,
     contactEmail: a.contactEmail ?? null,
+    sentChannel: a.sentChannel ?? null,
+    sentTo: a.sentTo ?? null,
     sentAt: a.sentAt ?? null,
     offerSalary: a.offerSalary ?? null,
     offerCurrency: a.offerCurrency ?? null,
@@ -105,6 +107,8 @@ export async function PATCH(
   if (data.notes !== undefined) app.notes = cleanOptional(data.notes)
   if (data.contactName !== undefined) app.contactName = cleanOptional(data.contactName)
   if (data.contactEmail !== undefined) app.contactEmail = cleanOptional(data.contactEmail)
+  if (data.sentChannel !== undefined) app.sentChannel = cleanOptional(data.sentChannel)
+  if (data.sentTo !== undefined) app.sentTo = cleanOptional(data.sentTo)
   if (data.archived !== undefined) app.archived = data.archived
   if (data.sentAt !== undefined) {
     app.sentAt = data.sentAt ? new Date(data.sentAt) : undefined

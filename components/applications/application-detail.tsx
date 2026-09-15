@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Download, Trash, Wand } from "lucide-react"
+import { ArrowLeft, Download, Send, Trash, Wand } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -60,6 +60,8 @@ interface FullApp {
   notes: string | null
   contactName: string | null
   contactEmail: string | null
+  sentChannel: string | null
+  sentTo: string | null
   sentAt: string | null
   offerSalary: number | null
   offerCurrency: string | null
@@ -74,6 +76,15 @@ interface ProfileItem {
   data: CvFormValues
 }
 
+const SEND_CHANNELS = ["Email", "Telegram", "LinkedIn", "Messenger"]
+
+function toLocalInputValue(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
+    d.getHours()
+  )}:${pad(d.getMinutes())}`
+}
+
 export function ApplicationDetail({ applicationId }: { applicationId: string }) {
   const router = useRouter()
   const [app, setApp] = useState<FullApp | null>(null)
@@ -83,6 +94,10 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [generating, setGenerating] = useState(false)
+  const [channel, setChannel] = useState("")
+  const [customChannel, setCustomChannel] = useState("")
+  const [sendTo, setSendTo] = useState("")
+  const [sendAt, setSendAt] = useState("")
 
   const load = useCallback(async () => {
     const [appRes, stagesRes, profilesRes] = await Promise.all([
@@ -97,6 +112,18 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
     }
     const appData = (await appRes.json()) as { application: FullApp }
     setApp(appData.application)
+
+    const ch = appData.application.sentChannel ?? ""
+    const known = ["Email", "Telegram", "LinkedIn", "Messenger"].includes(ch)
+    setChannel(known ? ch : ch ? "Другое" : "")
+    setCustomChannel(known ? "" : ch)
+    setSendTo(appData.application.sentTo ?? "")
+    setSendAt(
+      appData.application.sentAt
+        ? toLocalInputValue(new Date(appData.application.sentAt))
+        : toLocalInputValue(new Date())
+    )
+
     if (stagesRes.ok) {
       const d = (await stagesRes.json()) as { stages: Stage[] }
       setStages(d.stages)
@@ -137,6 +164,21 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
   async function remove() {
     await fetch(`/api/applications/${applicationId}`, { method: "DELETE" })
     router.push("/applications")
+  }
+
+  async function recordSend() {
+    const finalChannel = channel === "Другое" ? customChannel.trim() : channel
+    if (!finalChannel && !sendTo.trim()) {
+      setError("Укажите канал или кому отправлено")
+      return
+    }
+    const sentStage = stages.find((s) => s.name === "Отправлено")
+    await patch({
+      sentChannel: finalChannel || null,
+      sentTo: sendTo.trim() || null,
+      sentAt: sendAt ? new Date(sendAt).toISOString() : new Date().toISOString(),
+      ...(sentStage ? { stageId: sentStage.id } : {}),
+    })
   }
 
   if (loading) {
@@ -262,6 +304,72 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
 
       <Card>
         <CardHeader>
+          <CardTitle className="text-base">Отправка CV</CardTitle>
+          {app.sentAt ? (
+            <p className="text-xs text-muted-foreground">
+              Отправлено: {app.sentChannel ?? "—"} → {app.sentTo ?? "—"} ·{" "}
+              {new Date(app.sentAt).toLocaleString("ru-RU")}
+            </p>
+          ) : null}
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="flex flex-col gap-1.5">
+              <Label>Канал</Label>
+              <Select value={channel} onValueChange={setChannel}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Канал" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SEND_CHANNELS.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="Другое">Другое…</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {channel === "Другое" ? (
+              <div className="flex flex-col gap-1.5">
+                <Label>Свой канал</Label>
+                <Input
+                  value={customChannel}
+                  onChange={(e) => setCustomChannel(e.target.value)}
+                  placeholder="WhatsApp, мессенджер…"
+                />
+              </div>
+            ) : null}
+            <div className="flex flex-col gap-1.5">
+              <Label>Кому</Label>
+              <Input
+                value={sendTo}
+                onChange={(e) => setSendTo(e.target.value)}
+                placeholder="email / @telegram / имя"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Когда</Label>
+              <Input
+                type="datetime-local"
+                value={sendAt}
+                onChange={(e) => setSendAt(e.target.value)}
+              />
+            </div>
+          </div>
+          <Button
+            variant="secondary"
+            className="w-fit"
+            onClick={recordSend}
+            disabled={saving}
+          >
+            <Send /> Зафиксировать отправку
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle className="text-base">Заметки</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
@@ -375,6 +483,7 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
                 initialValues={defaultProfile?.data}
                 vacancyText={app.vacancyText ?? undefined}
                 generateExtras={{ save: true, applicationId: app.id }}
+                showVacancyEntry={false}
                 onGenerated={() => {
                   setGenerating(false)
                   load()

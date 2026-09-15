@@ -27,6 +27,8 @@ interface App {
   currency: string | null
   sourceType: string | null
   stageId: string
+  sentChannel: string | null
+  sentTo: string | null
   sentAt: string | null
   offerSalary: number | null
   offerCurrency: string | null
@@ -42,6 +44,12 @@ function salaryText(a: App): string {
     return cur ? `${range} ${cur}` : range
   }
   return ""
+}
+
+function sentText(a: App): string | null {
+  if (!a.sentAt) return null
+  const d = new Date(a.sentAt).toLocaleDateString("ru-RU")
+  return a.sentChannel ? `${a.sentChannel} · ${d}` : `Отправлено · ${d}`
 }
 
 function AppCard({
@@ -70,6 +78,7 @@ function AppCard({
       <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
         {app.country ? <span>{app.country}</span> : null}
         {salaryText(app) ? <span>{salaryText(app)}</span> : null}
+        {sentText(app) ? <span>{sentText(app)}</span> : null}
       </div>
     </div>
   )
@@ -223,6 +232,11 @@ export function ApplicationsBoard() {
                 <span className="text-xs text-muted-foreground">
                   {salaryText(a)}
                 </span>
+                {sentText(a) ? (
+                  <span className="text-xs text-muted-foreground">
+                    {sentText(a)}
+                  </span>
+                ) : null}
                 <select
                   value={a.stageId}
                   onChange={(e) => moveTo(a.id, e.target.value)}

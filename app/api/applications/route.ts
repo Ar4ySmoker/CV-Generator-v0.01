@@ -23,6 +23,8 @@ export function serializeList(a: ApplicationDoc) {
     sourceUrl: a.sourceUrl ?? null,
     cvId: a.cvId ?? null,
     stageId: a.stageId,
+    sentChannel: a.sentChannel ?? null,
+    sentTo: a.sentTo ?? null,
     sentAt: a.sentAt ?? null,
     offerSalary: a.offerSalary ?? null,
     offerCurrency: a.offerCurrency ?? null,
