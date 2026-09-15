@@ -69,6 +69,7 @@ lib/
   vacancy.ts                      # fetch вакансии по URL + определение языка
   docx.ts                         # сборка DOCX (порт generate.py)
   pipeline.ts                     # дефолтные этапы + ensure/start/list
+  profile-import.ts               # импорт profile.yaml (YAML/JSON) → CvFormValues
   utils.ts                        # cn
   models/                         # Mongoose-модели (см. §4)
 proxy.ts                          # защита маршрутов (замена middleware.ts в Next 16)
@@ -154,6 +155,7 @@ senior-стиля. Ответ — строгий JSON (валидируется 
 | `GET/POST /api/keys` | да | Список (маскированные) / создание (шифрование) |
 | `PATCH/DELETE /api/keys/:id` | да | Обновление / удаление (промоут следующего дефолтного) |
 | `GET/POST /api/profiles` | да | Список (с данными) / создание |
+| `POST /api/profiles/import` | да | Импорт `profile.yaml`/JSON (`{label, raw}`) → маппинг в `CvFormValues` → создание профиля |
 | `PATCH/DELETE /api/profiles/:id` | да | Переименование / default / удаление |
 | `GET /api/stages` | да | Список этапов (авто-сид дефолтных) |
 | `PUT /api/stages` | да | Полная замена воронки (`{stages:[...]}`), удалённые этапы переносят отклики на «Старт» |
