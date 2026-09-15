@@ -1,6 +1,8 @@
-import { Geist, Geist_Mono, DM_Sans, Outfit } from "next/font/google"
+import type { Metadata } from "next"
+import { Geist_Mono, DM_Sans, Outfit } from "next/font/google"
 
 import "./globals.css"
+import { SessionProvider } from "@/components/auth/session-provider"
 import { ThemeProvider } from "@/components/theme-provider"
 import { cn } from "@/lib/utils";
 
@@ -13,6 +15,12 @@ const fontMono = Geist_Mono({
   variable: "--font-mono",
 })
 
+export const metadata: Metadata = {
+  title: "CV-генератор",
+  description:
+    "Генерация адаптированного CV в DOCX и трекинг откликов до офера.",
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -20,12 +28,14 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="ru"
       suppressHydrationWarning
       className={cn("antialiased", fontMono.variable, "font-sans", dmSans.variable, outfitHeading.variable)}
     >
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <SessionProvider>
+          <ThemeProvider>{children}</ThemeProvider>
+        </SessionProvider>
       </body>
     </html>
   )
