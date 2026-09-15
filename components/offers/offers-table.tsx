@@ -2,14 +2,16 @@
 
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
-import { Crown } from "lucide-react"
+import { Crown, Handshake } from "lucide-react"
 
 import {
   type ApplicationItem,
   type Stage,
 } from "@/components/applications/types"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Table,
   TableBody,
@@ -51,7 +53,13 @@ export function OffersTable() {
   }, [load])
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Загрузка…</p>
+    return (
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+      </div>
+    )
   }
 
   const stageMap = new Map(stages.map((s) => [s.id, s]))
@@ -64,9 +72,18 @@ export function OffersTable() {
 
   if (offers.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
-        Оферов пока нет. Переместите отклик на этап «Офер» и укажите ЗП.
-      </p>
+      <Card>
+        <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
+          <Handshake className="size-8 text-muted-foreground" />
+          <p className="max-w-sm text-sm text-muted-foreground">
+            Оферов пока нет. Переместите отклик на этап «Офер» и укажите ЗП,
+            чтобы сравнить предложения.
+          </p>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/applications">К откликам</Link>
+          </Button>
+        </CardContent>
+      </Card>
     )
   }
 

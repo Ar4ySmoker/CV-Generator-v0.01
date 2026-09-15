@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Briefcase, CalendarClock, Handshake, MessagesSquare, Send } from "lucide-react"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   INTERVIEW_LABELS,
   type ApplicationItem,
@@ -123,7 +124,20 @@ export function DashboardStats() {
   }, [apps, stages, interviews])
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Загрузка…</p>
+    return (
+      <div className="flex flex-col gap-6">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-24 w-full" />
+          ))}
+        </div>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+        <Skeleton className="h-32 w-full" />
+      </div>
+    )
   }
 
   return (

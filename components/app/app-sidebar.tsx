@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { signOut, useSession } from "next-auth/react"
 import {
+  Bell,
   Briefcase,
   FileText,
   GitBranch,
@@ -51,6 +52,7 @@ const SETTINGS: NavItem[] = [
   { title: "Профили", href: "/settings/profile", icon: UserRound },
   { title: "API-ключи", href: "/settings/keys", icon: KeyRound },
   { title: "Воронка", href: "/settings/pipeline", icon: GitBranch },
+  { title: "Уведомления", href: "/settings/notifications", icon: Bell },
 ]
 
 function NavGroup({

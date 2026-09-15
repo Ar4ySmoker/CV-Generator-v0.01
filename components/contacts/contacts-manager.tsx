@@ -21,6 +21,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 
 import { CompanyLogo } from "@/components/applications/company-logo"
@@ -150,7 +151,13 @@ export function ContactsManager() {
   }
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Загрузка…</p>
+    return (
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-14 w-full" />
+        <Skeleton className="h-14 w-full" />
+        <Skeleton className="h-14 w-full" />
+      </div>
+    )
   }
 
   return (

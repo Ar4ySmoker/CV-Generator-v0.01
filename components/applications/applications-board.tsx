@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
+  Briefcase,
   CalendarClock,
   Clock,
   Columns3,
@@ -23,6 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
+import { Skeleton } from "@/components/ui/skeleton"
 import { formatRelative, salaryRange, timeInStage } from "@/lib/format"
 
 import { CompanyLogo } from "./company-logo"
@@ -214,7 +216,43 @@ export function ApplicationsBoard() {
   }, [interviews])
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Загрузка…</p>
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between gap-2">
+          <Skeleton className="h-9 w-full max-w-xs" />
+          <Skeleton className="h-9 w-40" />
+        </div>
+        <div className="flex gap-3 overflow-hidden">
+          {[0, 1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="flex min-w-60 flex-1 flex-col gap-2 rounded-xl border border-border/60 bg-muted/30 p-2"
+            >
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-20 w-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (apps.length === 0) {
+    return (
+      <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border/60 py-16 text-center">
+        <Briefcase className="size-8 text-muted-foreground" />
+        <p className="max-w-sm text-sm text-muted-foreground">
+          Откликов пока нет. Добавьте первую вакансию, чтобы начать трекинг —
+          от отправки CV до офера.
+        </p>
+        <Button asChild size="sm">
+          <Link href="/applications/new">
+            <Plus /> Первый отклик
+          </Link>
+        </Button>
+      </div>
+    )
   }
 
   return (
