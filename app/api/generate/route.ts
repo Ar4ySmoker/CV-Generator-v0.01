@@ -65,6 +65,9 @@ export async function POST(request: Request) {
         adaptedCv: cv,
         inputSnapshot: input,
         lang: cv.lang,
+        source: "generated",
+        templateId: input.templateId,
+        accentColor: input.accentColor,
       })
       if (input.applicationId) {
         await Application.updateOne(
@@ -74,7 +77,10 @@ export async function POST(request: Request) {
       }
     }
 
-    const buffer = await buildDocx(cv)
+    const buffer = await buildDocx(cv, {
+      template: input.templateId,
+      accentColor: input.accentColor,
+    })
     return new Response(new Uint8Array(buffer), {
       headers: {
         "Content-Type": DOCX_CONTENT_TYPE,

@@ -94,6 +94,8 @@ export const generateRequestSchema = cvFormSchema.extend({
   save: z.boolean().optional(),
   applicationId: z.string().optional(),
   profileId: z.string().optional(),
+  templateId: z.string().optional(),
+  accentColor: z.string().optional(),
 })
 
 export type PersonalValues = z.infer<typeof personalSchema>

@@ -42,6 +42,7 @@ import type { CvFormValues } from "@/lib/schemas"
 import { ActivityTimeline } from "./activity-timeline"
 import { CompanyLogo } from "./company-logo"
 import { ContactPicker } from "./contact-picker"
+import { CvImport } from "./cv-import"
 import { InterviewDialog } from "./interview-dialog"
 import { ResponseDialog } from "./response-dialog"
 import { SendDialog } from "./send-dialog"
@@ -305,7 +306,7 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
       </Card>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList>
+        <TabsList className="max-w-full justify-start overflow-x-auto">
           <TabsTrigger value="overview">Обзор</TabsTrigger>
           <TabsTrigger value="timeline">Таймлайн</TabsTrigger>
           <TabsTrigger value="contacts">Контакты</TabsTrigger>
@@ -359,7 +360,7 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
                     }}
                   />
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid gap-2 sm:grid-cols-3">
                   <div className="flex flex-col gap-1.5">
                     <Label>ЗП от</Label>
                     <Input
@@ -600,6 +601,8 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
                   <Wand /> Сгенерировать CV под вакансию
                 </Button>
               ) : null}
+
+              <CvImport applicationId={app.id} onImported={load} />
 
               {generating ? (
                 <div className="flex flex-col gap-3 rounded-xl border border-border/60 p-4">

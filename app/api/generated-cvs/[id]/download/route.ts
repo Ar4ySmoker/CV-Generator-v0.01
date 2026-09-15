@@ -24,7 +24,10 @@ export async function GET(
     return Response.json({ error: "CV не найден" }, { status: 404 })
   }
 
-  const buffer = await buildDocx(doc.adaptedCv as AdaptedCv)
+  const buffer = await buildDocx(doc.adaptedCv as AdaptedCv, {
+    template: doc.templateId,
+    accentColor: doc.accentColor,
+  })
 
   return new Response(new Uint8Array(buffer), {
     headers: {

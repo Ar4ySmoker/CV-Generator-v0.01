@@ -37,6 +37,7 @@ import { EducationStep } from "@/components/form/steps/education-step"
 import { ProjectsStep } from "@/components/form/steps/projects-step"
 import { LanguagesStep } from "@/components/form/steps/languages-step"
 import { VacancyStep } from "@/components/form/steps/vacancy-step"
+import { TemplatePicker } from "@/components/form/template-picker"
 
 type StepId =
   | "personal"
@@ -178,6 +179,8 @@ export function CvForm({
   const [profileLabel, setProfileLabel] = useState("")
   const [savingProfile, setSavingProfile] = useState(false)
   const [profileSaved, setProfileSaved] = useState(false)
+  const [templateId, setTemplateId] = useState("classic")
+  const [accentColor, setAccentColor] = useState("")
 
   const defaultValues = useMemo<CvFormValues>(() => {
     const base = initialValues ? { ...initialValues } : DEFAULT_VALUES
@@ -263,6 +266,8 @@ export function CvForm({
           ...values,
           mode,
           disclaimerAccepted,
+          templateId,
+          accentColor: accentColor || undefined,
           ...generateExtras,
         }),
       })
@@ -472,6 +477,15 @@ export function CvForm({
                 <AlertTitle>Ошибка</AlertTitle>
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
+            ) : null}
+
+            {!isProfileMode && isLast ? (
+              <TemplatePicker
+                templateId={templateId}
+                accentColor={accentColor}
+                onTemplate={setTemplateId}
+                onAccent={setAccentColor}
+              />
             ) : null}
 
             <div className="flex items-center justify-between gap-2">

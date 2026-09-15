@@ -11,6 +11,9 @@ export interface GeneratedCvDoc {
   adaptedCv: AdaptedCv
   inputSnapshot: CvFormValues
   lang: "ru" | "en"
+  source: "generated" | "import"
+  templateId?: string
+  accentColor?: string
   createdAt: Date
   updatedAt: Date
 }
@@ -23,6 +26,9 @@ const GeneratedCvSchema = new Schema<GeneratedCvDoc>(
     adaptedCv: { type: Schema.Types.Mixed, required: true },
     inputSnapshot: { type: Schema.Types.Mixed, required: true },
     lang: { type: String, enum: ["ru", "en"], required: true },
+    source: { type: String, enum: ["generated", "import"], default: "generated" },
+    templateId: { type: String },
+    accentColor: { type: String },
   },
   { timestamps: true }
 )

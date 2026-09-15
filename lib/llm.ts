@@ -1,7 +1,15 @@
 import { z } from "zod"
 
 import type { ChatProvider } from "./providers"
-import type { GenerateRequest } from "./schemas"
+import {
+  educationSchema,
+  experienceSchema,
+  languageSchema,
+  personalSchema,
+  projectSchema,
+  skillSchema,
+  type GenerateRequest,
+} from "./schemas"
 
 export const cvLangSchema = z.enum(["ru", "en"])
 
@@ -57,6 +65,21 @@ export const adaptedCvSchema = z.object({
 
 export type AdaptedCv = z.infer<typeof adaptedCvSchema>
 export type CvSection = z.infer<typeof cvSectionSchema>
+
+export const parsedCvSchema = z.object({
+  adaptedCv: adaptedCvSchema,
+  form: z.object({
+    personal: personalSchema,
+    skills: z.array(skillSchema),
+    experience: z.array(experienceSchema),
+    education: z.array(educationSchema),
+    projects: z.array(projectSchema),
+    languages: z.array(languageSchema),
+  }),
+})
+
+export type ParsedCv = z.infer<typeof parsedCvSchema>
+export type ParsedCvForm = z.infer<typeof parsedCvSchema>["form"]
 
 const OUTPUT_CONTRACT = `Верни ТОЛЬКО валидный JSON без пояснений и без markdown-обёрток. Строгая схема:
 
@@ -206,6 +229,69 @@ export async function generateCv(
   const parsed = JSON.parse(stripFences(raw)) as unknown
 
   const result = adaptedCvSchema.safeParse(parsed)
+  if (!result.success) {
+    throw new Error(
+      `Некорректный ответ модели: ${result.error.issues
+        .map((i) => i.path.join(".") + ": " + i.message)
+        .join("; ")}`
+    )
+  }
+
+  return result.data
+}
+
+const PARSE_OUTPUT_CONTRACT = `Верни ТОЛЬКО валидный JSON без пояснений и без markdown-обёрток. Схема:
+
+{
+  "adaptedCv": {
+    "lang": "ru" | "en",
+    "name": "Имя Фамилия",
+    "title_line": "Должность",
+    "header_note": "краткая строка-подводка (опционально)",
+    "contacts": ["Телефон: ...", "E-mail: ...", "Местоположение: ...", "Telegram: ...", "GitHub: ...", "Сайт: ..."],
+    "sections": [
+      {"type": "paragraph", "heading": "О себе", "lines": ["..."]},
+      {"type": "bullets", "heading": "Технические навыки", "items": ["..."]},
+      {"type": "experience", "heading": "Опыт работы", "items": [{"period": "...", "role": "...", "company": "...", "place": "...", "url": "...", "bullets": ["..."], "tech": "..."}]},
+      {"type": "projects", "heading": "Проекты", "items": [{"name": "...", "tagline": "...", "desc": "...", "bullets": ["..."], "tech": "..."}]},
+      {"type": "bullets", "heading": "Образование", "items": ["..."]},
+      {"type": "bullets", "heading": "Языки", "items": ["..."]}
+    ]
+  },
+  "form": {
+    "personal": {"name": "...", "phone": "...", "email": "...", "location": "...", "telegram": "...", "github": "...", "site": "..."},
+    "skills": [{"name": "...", "level": "basic" | "intermediate" | "advanced" | "expert"}],
+    "experience": [{"period": "...", "role": "...", "company": "...", "place": "...", "url": "...", "bullets": [{"value": "..."}]}],
+    "education": [{"institution": "...", "faculty": "...", "degree": "..."}],
+    "projects": [{"name": "...", "description": "...", "stack": "...", "achievements": "..."}],
+    "languages": [{"language": "...", "level": "..."}]
+  }
+}
+
+Правила:
+- Переноси ТОЛЬКО факты, реально указанные в тексте. НЕ придумывай, НЕ улучшай, НЕ добавляй отсутствующее.
+- "lang" — по языку исходного CV.
+- Пустые секции/поля опускай. Если контактов нет — "contacts": [].
+- "level" навыков — по косвенным признакам в тексте, по умолчанию "intermediate".`
+
+export async function parseCvFromText(
+  text: string,
+  provider: ChatProvider
+): Promise<ParsedCv> {
+  const system =
+    "Ты — аккуратный экстрактор данных из резюме. Извлекаешь только то, что указано в тексте, и возвращаешь строго валидный JSON."
+
+  const user = `Текст резюме (CV):
+"""
+${text}
+"""
+
+${PARSE_OUTPUT_CONTRACT}`
+
+  const raw = await callChatCompletion(provider, system, user)
+  const parsed = JSON.parse(stripFences(raw)) as unknown
+
+  const result = parsedCvSchema.safeParse(parsed)
   if (!result.success) {
     throw new Error(
       `Некорректный ответ модели: ${result.error.issues
