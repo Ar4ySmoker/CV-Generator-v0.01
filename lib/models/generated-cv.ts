@@ -14,6 +14,7 @@ export interface GeneratedCvDoc {
   source: "generated" | "import"
   templateId?: string
   accentColor?: string
+  themeId?: string
   createdAt: Date
   updatedAt: Date
 }
@@ -29,6 +30,7 @@ const GeneratedCvSchema = new Schema<GeneratedCvDoc>(
     source: { type: String, enum: ["generated", "import"], default: "generated" },
     templateId: { type: String },
     accentColor: { type: String },
+    themeId: { type: String },
   },
   { timestamps: true }
 )

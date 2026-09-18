@@ -101,6 +101,8 @@ export const generateRequestSchema = cvFormSchema.extend({
   templateId: z.string().optional(),
   accentColor: z.string().optional(),
   length: cvLengthSchema.optional(),
+  customPrompt: z.string().trim().max(6000).optional(),
+  themeId: z.string().optional(),
 })
 
 export type PersonalValues = z.infer<typeof personalSchema>

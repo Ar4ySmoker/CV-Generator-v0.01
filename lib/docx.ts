@@ -9,10 +9,10 @@ import {
 } from "docx"
 
 import type { AdaptedCv, CvSection } from "./llm"
-import { cvTemplateById } from "./cv-templates"
+import { cvTemplateById, type CvThemeStyle } from "./cv-templates"
 
 export { CV_TEMPLATES, cvTemplateById } from "./cv-templates"
-export type { CvTemplate, CvTemplateId } from "./cv-templates"
+export type { CvTemplate, CvTemplateId, CvThemeStyle } from "./cv-templates"
 
 interface Theme {
   font: string
@@ -26,6 +26,7 @@ interface Theme {
 export interface BuildDocxOptions {
   template?: string
   accentColor?: string
+  theme?: CvThemeStyle
 }
 
 const LINE = Math.round(1.08 * 240)
@@ -223,15 +224,17 @@ export async function buildDocx(
   options: BuildDocxOptions = {}
 ): Promise<Buffer> {
   const template = cvTemplateById(options.template)
-  const accent = options.accentColor?.replace(/^#/, "") || template.accent
-  const theme: Theme = {
-    font: template.font,
-    accent,
-    body: template.body,
-    gray: template.gray,
-    heading: template.heading,
-    accentRule: template.accentRule,
-  }
+  const accent = options.accentColor?.replace(/^#/, "")
+  const theme: Theme = options.theme
+    ? { ...options.theme, accent: accent ?? options.theme.accent }
+    : {
+        font: template.font,
+        accent: accent ?? template.accent,
+        body: template.body,
+        gray: template.gray,
+        heading: template.heading,
+        accentRule: template.accentRule,
+      }
 
   const techLabel = cv.lang === "en" ? "Technologies" : "Технологии"
 

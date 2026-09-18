@@ -1,14 +1,17 @@
 export type CvTemplateId = "classic" | "modern" | "minimal"
 
-export interface CvTemplate {
-  id: CvTemplateId
-  name: string
+export interface CvThemeStyle {
   font: string
   accent: string
   body: string
   gray: string
   heading: "underline" | "bar" | "plain"
   accentRule: boolean
+}
+
+export interface CvTemplate extends CvThemeStyle {
+  id: CvTemplateId
+  name: string
 }
 
 export const CV_TEMPLATES: CvTemplate[] = [

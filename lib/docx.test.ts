@@ -47,4 +47,19 @@ describe("buildDocx", () => {
     expect(Buffer.isBuffer(buf)).toBe(true)
     expect(buf.length).toBeGreaterThan(0)
   })
+
+  it("applies a custom theme", async () => {
+    const buf = await buildDocx(cv, {
+      theme: {
+        font: "Arial",
+        accent: "FF0000",
+        body: "111111",
+        gray: "666666",
+        heading: "bar",
+        accentRule: true,
+      },
+    })
+    expect(Buffer.isBuffer(buf)).toBe(true)
+    expect(buf.length).toBeGreaterThan(0)
+  })
 })

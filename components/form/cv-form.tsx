@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -38,7 +38,9 @@ import { ProjectsStep } from "@/components/form/steps/projects-step"
 import { LanguagesStep } from "@/components/form/steps/languages-step"
 import { VacancyStep } from "@/components/form/steps/vacancy-step"
 import { TemplatePicker } from "@/components/form/template-picker"
+import type { CustomThemeOption } from "@/components/form/template-picker"
 import { LengthSelector } from "@/components/form/length-selector"
+import { CustomPromptField } from "@/components/form/custom-prompt-field"
 
 type StepId =
   | "personal"
@@ -183,6 +185,23 @@ export function CvForm({
   const [templateId, setTemplateId] = useState("classic")
   const [accentColor, setAccentColor] = useState("")
   const [cvLength, setCvLength] = useState<CvLength>("free")
+  const [customPrompt, setCustomPrompt] = useState("")
+  const [themeId, setThemeId] = useState("")
+  const [themes, setThemes] = useState<CustomThemeOption[]>([])
+
+  useEffect(() => {
+    if (!allowSaveProfile) return
+    let cancelled = false
+    fetch("/api/cv-themes")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { themes?: CustomThemeOption[] } | null) => {
+        if (!cancelled && data?.themes) setThemes(data.themes)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [allowSaveProfile])
 
   const defaultValues = useMemo<CvFormValues>(() => {
     const base = initialValues ? { ...initialValues } : DEFAULT_VALUES
@@ -271,6 +290,8 @@ export function CvForm({
           templateId,
           accentColor: accentColor || undefined,
           length: cvLength,
+          customPrompt: customPrompt.trim() || undefined,
+          themeId: themeId || undefined,
           ...generateExtras,
         }),
       })
@@ -487,9 +508,20 @@ export function CvForm({
                 <LengthSelector value={cvLength} onChange={setCvLength} />
                 <TemplatePicker
                   templateId={templateId}
+                  themeId={themeId}
                   accentColor={accentColor}
-                  onTemplate={setTemplateId}
+                  onTemplate={(id) => {
+                    setTemplateId(id)
+                    setThemeId("")
+                  }}
+                  onTheme={setThemeId}
                   onAccent={setAccentColor}
+                  customThemes={themes}
+                />
+                <CustomPromptField
+                  value={customPrompt}
+                  onChange={setCustomPrompt}
+                  allowSaveProfile={allowSaveProfile}
                 />
               </div>
             ) : null}

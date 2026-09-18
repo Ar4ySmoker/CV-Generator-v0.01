@@ -1,9 +1,13 @@
 "use client"
 
-import { ACCENT_COLORS, CV_TEMPLATES, type CvTemplate } from "@/lib/cv-templates"
+import {
+  ACCENT_COLORS,
+  CV_TEMPLATES,
+  type CvThemeStyle,
+} from "@/lib/cv-templates"
 import { cn } from "@/lib/utils"
 
-function Preview({ template, accent }: { template: CvTemplate; accent: string }) {
+function Preview({ style, accent }: { style: CvThemeStyle; accent: string }) {
   const accentHex = `#${accent}`
   return (
     <div className="flex aspect-[3/4] w-full flex-col gap-1.5 rounded-md border border-border/40 bg-background p-2.5">
@@ -13,7 +17,7 @@ function Preview({ template, accent }: { template: CvTemplate; accent: string })
       />
       <div className="h-1.5 w-1/2 rounded-[2px] bg-muted-foreground/40" />
       <div className="mt-1 flex items-center gap-1">
-        {template.heading === "bar" ? (
+        {style.heading === "bar" ? (
           <div
             className="h-4 w-0.5 shrink-0 rounded-[1px]"
             style={{ backgroundColor: accentHex }}
@@ -22,9 +26,9 @@ function Preview({ template, accent }: { template: CvTemplate; accent: string })
         <div
           className="h-1.5 w-1/3 rounded-[2px]"
           style={{
-            backgroundColor: template.heading === "plain" ? "var(--muted-foreground)" : accentHex,
+            backgroundColor: style.heading === "plain" ? "var(--muted-foreground)" : accentHex,
             boxShadow:
-              template.heading === "underline"
+              style.heading === "underline"
                 ? `0 2px 0 ${accentHex}`
                 : undefined,
           }}
@@ -37,16 +41,24 @@ function Preview({ template, accent }: { template: CvTemplate; accent: string })
   )
 }
 
+export type CustomThemeOption = { id: string; name: string } & CvThemeStyle
+
 export function TemplatePicker({
   templateId,
+  themeId,
   accentColor,
   onTemplate,
+  onTheme,
   onAccent,
+  customThemes = [],
 }: {
   templateId: string
+  themeId: string
   accentColor: string
   onTemplate: (id: string) => void
+  onTheme: (id: string) => void
   onAccent: (color: string) => void
+  customThemes?: CustomThemeOption[]
 }) {
   return (
     <div className="flex flex-col gap-3">
@@ -59,17 +71,35 @@ export function TemplatePicker({
             onClick={() => onTemplate(t.id)}
             className={cn(
               "flex flex-col gap-2 rounded-xl border border-border/60 p-2 text-left transition-colors",
-              templateId === t.id && "border-primary ring-2 ring-primary/20"
+              templateId === t.id &&
+                !themeId &&
+                "border-primary ring-2 ring-primary/20"
             )}
           >
-            <Preview
-              template={t}
-              accent={accentColor || t.accent}
-            />
+            <Preview style={t} accent={accentColor || t.accent} />
             <span className="text-center text-xs font-medium">{t.name}</span>
           </button>
         ))}
       </div>
+
+      {customThemes.length > 0 ? (
+        <div className="grid grid-cols-3 gap-2">
+          {customThemes.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => onTheme(t.id)}
+              className={cn(
+                "flex flex-col gap-2 rounded-xl border border-border/60 p-2 text-left transition-colors",
+                themeId === t.id && "border-primary ring-2 ring-primary/20"
+              )}
+            >
+              <Preview style={t} accent={accentColor || t.accent} />
+              <span className="text-center text-xs font-medium">{t.name}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       <p className="text-xs font-medium text-muted-foreground">Акцентный цвет</p>
       <div className="flex flex-wrap gap-2">

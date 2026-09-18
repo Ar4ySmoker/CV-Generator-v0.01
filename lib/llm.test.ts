@@ -62,6 +62,31 @@ describe("generateCv", () => {
     expect(cv.sections[0]?.heading).toBe("Навыки")
   })
 
+  it("injects a custom prompt into the LLM request", async () => {
+    let captured: { messages: Array<{ role: string; content: string }> } | null = null
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (_url: string, init: { body: string }) => {
+        captured = JSON.parse(init.body) as {
+          messages: Array<{ role: string; content: string }>
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            choices: [{ message: { content: JSON.stringify(validAdaptedCv) } }],
+          }),
+        }
+      })
+    )
+    await generateCv({ ...input, customPrompt: "Пиши лаконично и без воды" }, provider)
+    const req = captured as unknown as {
+      messages: Array<{ role: string; content: string }>
+    }
+    expect(req.messages[1].content).toContain("Пиши лаконично и без воды")
+    expect(req.messages[1].content).toContain("Данные кандидата")
+  })
+
   it("throws on an invalid LLM response", async () => {
     mockFetch(JSON.stringify({ lang: "ru" }))
     await expect(generateCv(input, provider)).rejects.toThrow()

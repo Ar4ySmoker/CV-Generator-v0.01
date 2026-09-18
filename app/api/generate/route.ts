@@ -1,12 +1,14 @@
 import { generateRequestSchema } from "@/lib/schemas"
 import { generateCv } from "@/lib/llm"
 import { buildDocx } from "@/lib/docx"
+import type { CvThemeStyle } from "@/lib/cv-templates"
 import { fetchVacancyText, VacancyUrlError } from "@/lib/vacancy"
 import { auth } from "@/lib/auth"
 import { resolveProvider } from "@/lib/resolve-provider"
 import { connectDb } from "@/lib/db"
 import { GeneratedCv } from "@/lib/models/generated-cv"
 import { Application } from "@/lib/models/application"
+import { CvTheme } from "@/lib/models/cv-theme"
 
 export const runtime = "nodejs"
 
@@ -56,6 +58,25 @@ export async function POST(request: Request) {
     const provider = await resolveProvider(session?.user?.id)
     const cv = await generateCv(input, provider)
 
+    let themeStyle: CvThemeStyle | undefined
+    if (input.themeId && session?.user?.id) {
+      await connectDb()
+      const theme = await CvTheme.findOne({
+        _id: input.themeId,
+        userId: session.user.id,
+      })
+      if (theme) {
+        themeStyle = {
+          font: theme.font,
+          accent: theme.accent,
+          body: theme.body,
+          gray: theme.gray,
+          heading: theme.heading,
+          accentRule: theme.accentRule,
+        }
+      }
+    }
+
     if (session?.user?.id && input.save) {
       await connectDb()
       const created = await GeneratedCv.create({
@@ -68,6 +89,7 @@ export async function POST(request: Request) {
         source: "generated",
         templateId: input.templateId,
         accentColor: input.accentColor,
+        themeId: input.themeId,
       })
       if (input.applicationId) {
         await Application.updateOne(
@@ -80,6 +102,7 @@ export async function POST(request: Request) {
     const buffer = await buildDocx(cv, {
       template: input.templateId,
       accentColor: input.accentColor,
+      theme: themeStyle,
     })
     return new Response(new Uint8Array(buffer), {
       headers: {

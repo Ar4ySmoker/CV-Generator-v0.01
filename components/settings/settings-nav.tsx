@@ -8,6 +8,8 @@ import { cn } from "@/lib/utils"
 const LINKS = [
   { href: "/settings/keys", label: "API-ключи" },
   { href: "/settings/profile", label: "Профили" },
+  { href: "/settings/prompts", label: "Промты" },
+  { href: "/settings/design", label: "Дизайн" },
   { href: "/settings/pipeline", label: "Воронка" },
   { href: "/settings/notifications", label: "Уведомления" },
 ]

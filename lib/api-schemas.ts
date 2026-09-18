@@ -17,6 +17,52 @@ export const profileUpdateSchema = z.object({
   isDefault: z.boolean().optional(),
 })
 
+export const promptCreateSchema = z.object({
+  name: z.string().trim().min(1, "Укажите название промта").max(120),
+  content: z.string().trim().min(1, "Введите текст промта").max(6000),
+  isDefault: z.boolean().optional(),
+})
+
+export const promptUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  content: z.string().trim().min(1).max(6000).optional(),
+  isDefault: z.boolean().optional(),
+})
+
+export const themeCreateSchema = z.object({
+  name: z.string().trim().min(1, "Укажите название темы").max(120),
+  font: z.string().trim().min(1).max(60),
+  accent: z.string().trim().regex(/^[0-9a-fA-F]{6}$/, "Цвет в формате RRGGBB"),
+  body: z.string().trim().regex(/^[0-9a-fA-F]{6}$/, "Цвет в формате RRGGBB"),
+  gray: z.string().trim().regex(/^[0-9a-fA-F]{6}$/, "Цвет в формате RRGGBB"),
+  heading: z.enum(["underline", "bar", "plain"]),
+  accentRule: z.boolean(),
+  isDefault: z.boolean().optional(),
+})
+
+export const themeUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  font: z.string().trim().min(1).max(60).optional(),
+  accent: z
+    .string()
+    .trim()
+    .regex(/^[0-9a-fA-F]{6}$/, "Цвет в формате RRGGBB")
+    .optional(),
+  body: z
+    .string()
+    .trim()
+    .regex(/^[0-9a-fA-F]{6}$/, "Цвет в формате RRGGBB")
+    .optional(),
+  gray: z
+    .string()
+    .trim()
+    .regex(/^[0-9a-fA-F]{6}$/, "Цвет в формате RRGGBB")
+    .optional(),
+  heading: z.enum(["underline", "bar", "plain"]).optional(),
+  accentRule: z.boolean().optional(),
+  isDefault: z.boolean().optional(),
+})
+
 export const applicationCreateSchema = z.object({
   company: z.string().trim().min(1, "Укажите компанию"),
   role: z.string().trim().min(1, "Укажите должность"),

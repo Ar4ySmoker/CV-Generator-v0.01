@@ -1,6 +1,7 @@
 import { z } from "zod"
 
 import type { ChatProvider } from "./providers"
+import { renderPrompt, type PromptContext } from "./prompt"
 import {
   educationSchema,
   experienceSchema,
@@ -126,7 +127,7 @@ const ONE_PAGE = `Формат "одна страница" (обязательн
 - Оставь только самые релевантные вакансии навыки и опыт; нерелевантное опусти.
 - Секции без воды, минимальное количество пунктов в списках.`
 
-function buildUserPrompt(input: GenerateRequest, mode: GenerateRequest["mode"]) {
+function buildDataBlock(input: GenerateRequest): string {
   const data = {
     personal: input.personal,
     skills: input.skills,
@@ -148,6 +149,13 @@ function buildUserPrompt(input: GenerateRequest, mode: GenerateRequest["mode"]) 
       ? input.vacancy.url
       : input.vacancy?.text?.trim()
 
+  return `Данные кандидата (JSON):
+${JSON.stringify(data, null, 2)}
+
+${vacancy ? `Вакансия:\n"""\n${vacancy}\n"""\n` : "Вакансия не задана.\n"}`
+}
+
+function buildDefaultInstructions(input: GenerateRequest): string {
   const modeInstruction: Record<GenerateRequest["mode"], string> = {
     with_experience: `Режим "с опытом". У кандидата есть реальный опыт. Адаптируй CV под вакансию (если она задана):
 - Отсортируй навыки: совпадающие с требованиями вакансии — первыми.
@@ -162,18 +170,48 @@ function buildUserPrompt(input: GenerateRequest, mode: GenerateRequest["mode"]) 
 - "О себе" с результатами и цифрами.`,
   }
 
-  return `Данные кандидата (JSON):
-${JSON.stringify(data, null, 2)}
-
-${vacancy ? `Вакансия:\n"""\n${vacancy}\n"""\n` : "Вакансия не задана.\n"}
-
-${modeInstruction[mode]}
+  return `${modeInstruction[input.mode]}
 
 ${SENIOR_STYLE}
 
 ${HONESTY}
 
-${input.length === "one_page" ? ONE_PAGE + "\n\n" : ""}${OUTPUT_CONTRACT}`
+${input.length === "one_page" ? ONE_PAGE + "\n\n" : ""}`.trimEnd()
+}
+
+function makePromptContext(input: GenerateRequest): PromptContext {
+  return {
+    personal: input.personal,
+    skills: input.skills,
+    experience: input.experience.map((e) => ({
+      period: e.period,
+      role: e.role,
+      company: e.company,
+      place: e.place,
+      url: e.url,
+      bullets: e.bullets.map((b) => b.value),
+    })),
+    education: input.education,
+    projects: input.projects,
+    languages: input.languages,
+    vacancy:
+      input.vacancy?.source === "url"
+        ? input.vacancy.url
+        : input.vacancy?.text?.trim(),
+    mode: input.mode,
+  }
+}
+
+function buildUserPrompt(input: GenerateRequest) {
+  const instructions = input.customPrompt?.trim()
+    ? renderPrompt(input.customPrompt.trim(), makePromptContext(input))
+    : buildDefaultInstructions(input)
+
+  return `${instructions}
+
+${buildDataBlock(input)}
+
+${OUTPUT_CONTRACT}`
 }
 
 function stripFences(text: string): string {
@@ -232,7 +270,7 @@ export async function generateCv(
   const system =
     "Ты — эксперт по составлению senior-резюме. Ты пишешь только валидный JSON по заданной схеме."
 
-  const raw = await callChatCompletion(provider, system, buildUserPrompt(input, input.mode))
+  const raw = await callChatCompletion(provider, system, buildUserPrompt(input))
   const parsed = JSON.parse(stripFences(raw)) as unknown
 
   const result = adaptedCvSchema.safeParse(parsed)
