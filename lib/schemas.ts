@@ -8,6 +8,10 @@ export const modeSchema = z.enum([
 
 export type Mode = z.infer<typeof modeSchema>
 
+export const cvLengthSchema = z.enum(["free", "one_page"])
+
+export type CvLength = z.infer<typeof cvLengthSchema>
+
 export const skillLevelSchema = z.enum([
   "basic",
   "intermediate",
@@ -96,6 +100,7 @@ export const generateRequestSchema = cvFormSchema.extend({
   profileId: z.string().optional(),
   templateId: z.string().optional(),
   accentColor: z.string().optional(),
+  length: cvLengthSchema.optional(),
 })
 
 export type PersonalValues = z.infer<typeof personalSchema>

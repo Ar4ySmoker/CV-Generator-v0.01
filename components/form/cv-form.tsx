@@ -28,7 +28,7 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 
-import { cvFormSchema, type CvFormValues, type Mode } from "@/lib/schemas"
+import { cvFormSchema, type CvFormValues, type CvLength, type Mode } from "@/lib/schemas"
 
 import { PersonalStep } from "@/components/form/steps/personal-step"
 import { SkillsStep } from "@/components/form/steps/skills-step"
@@ -38,6 +38,7 @@ import { ProjectsStep } from "@/components/form/steps/projects-step"
 import { LanguagesStep } from "@/components/form/steps/languages-step"
 import { VacancyStep } from "@/components/form/steps/vacancy-step"
 import { TemplatePicker } from "@/components/form/template-picker"
+import { LengthSelector } from "@/components/form/length-selector"
 
 type StepId =
   | "personal"
@@ -181,6 +182,7 @@ export function CvForm({
   const [profileSaved, setProfileSaved] = useState(false)
   const [templateId, setTemplateId] = useState("classic")
   const [accentColor, setAccentColor] = useState("")
+  const [cvLength, setCvLength] = useState<CvLength>("free")
 
   const defaultValues = useMemo<CvFormValues>(() => {
     const base = initialValues ? { ...initialValues } : DEFAULT_VALUES
@@ -268,6 +270,7 @@ export function CvForm({
           disclaimerAccepted,
           templateId,
           accentColor: accentColor || undefined,
+          length: cvLength,
           ...generateExtras,
         }),
       })
@@ -480,12 +483,15 @@ export function CvForm({
             ) : null}
 
             {!isProfileMode && isLast ? (
-              <TemplatePicker
-                templateId={templateId}
-                accentColor={accentColor}
-                onTemplate={setTemplateId}
-                onAccent={setAccentColor}
-              />
+              <div className="flex flex-col gap-5">
+                <LengthSelector value={cvLength} onChange={setCvLength} />
+                <TemplatePicker
+                  templateId={templateId}
+                  accentColor={accentColor}
+                  onTemplate={setTemplateId}
+                  onAccent={setAccentColor}
+                />
+              </div>
             ) : null}
 
             <div className="flex items-center justify-between gap-2">

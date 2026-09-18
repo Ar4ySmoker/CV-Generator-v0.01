@@ -119,6 +119,13 @@ const HONESTY = `Честность (обязательно):
 - Если вакансия требует того, чего у кандидата нет — не выдумывай, просто расставь акценты на том, что есть.
 - Язык CV ("lang") — по языку вакансии. Если вакансии нет — "ru".`
 
+const ONE_PAGE = `Формат "одна страница" (обязательно):
+- Итоговое CV должно умещаться на одну страницу A4.
+- "О себе" — 1-2 предложения, только самое ценное.
+- Каждая позиция опыта и проекта — максимум 3 буллета.
+- Оставь только самые релевантные вакансии навыки и опыт; нерелевантное опусти.
+- Секции без воды, минимальное количество пунктов в списках.`
+
 function buildUserPrompt(input: GenerateRequest, mode: GenerateRequest["mode"]) {
   const data = {
     personal: input.personal,
@@ -166,7 +173,7 @@ ${SENIOR_STYLE}
 
 ${HONESTY}
 
-${OUTPUT_CONTRACT}`
+${input.length === "one_page" ? ONE_PAGE + "\n\n" : ""}${OUTPUT_CONTRACT}`
 }
 
 function stripFences(text: string): string {

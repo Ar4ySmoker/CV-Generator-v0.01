@@ -55,6 +55,13 @@ describe("generateCv", () => {
     expect(cv.sections[0]?.heading).toBe("Навыки")
   })
 
+  it("parses a valid response with length=one_page", async () => {
+    mockFetch(JSON.stringify(validAdaptedCv))
+    const cv = await generateCv({ ...input, length: "one_page" }, provider)
+    expect(cv.name).toBe("Иван Иванов")
+    expect(cv.sections[0]?.heading).toBe("Навыки")
+  })
+
   it("throws on an invalid LLM response", async () => {
     mockFetch(JSON.stringify({ lang: "ru" }))
     await expect(generateCv(input, provider)).rejects.toThrow()
