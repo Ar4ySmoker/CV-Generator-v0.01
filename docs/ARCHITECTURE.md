@@ -31,12 +31,14 @@ app/
     login/page.tsx, register/page.tsx
   (app)/                          # личный кабинет (sidebar)
     layout.tsx                    # AppShell (SidebarProvider + SidebarInset)
-    dashboard/, vacancies/, telegram/, applications/{page,new,[id]}, offers/, contacts/, teams/{page,[id]/...}, settings/{keys,profile,pipeline,notifications}
+    dashboard/, vacancies/, telegram/, applications/{page,new,[id]}, offers/, contacts/, teams/{page,[id]/...},     settings/{keys,profile,prompts,design,pipeline,notifications}
   api/
     auth/[...nextauth], register
     generate, generated-cvs/[id]/download, cv-import
     keys, keys/[id]
     profiles, profiles/[id], profiles/import
+    cv-prompts, cv-prompts/[id]
+    cv-themes, cv-themes/[id]
     stages
     applications, applications/[id]
     contacts, contacts/[id]
@@ -53,7 +55,7 @@ components/
   generator.tsx
   applications/                   # applications-board, pipeline-board, application-card, application-detail, activity-timeline, company-logo, stage-badge, contact-picker, cv-import, send/response/interview-dialog, application-form, types.ts
   dashboard/, offers/, contacts/
-  settings/                       # settings-nav, profiles-manager, keys-*, pipeline-*, notifications-settings
+  settings/                       # settings-nav, profiles-manager, keys-*, prompts-manager, themes-manager, pipeline-*, notifications-settings
   notifications/                  # use-push.ts, enable-notifications.tsx
   vacancies/                      # vacancies-board.tsx, vacancy-search.tsx, types.ts
   telegram/telegram-feed.tsx
@@ -62,7 +64,7 @@ components/
 lib/
   auth.ts, auth.config.ts, admin.ts, db.ts, encryption.ts
   schemas.ts, api-schemas.ts
-  llm.ts, providers.ts, resolve-provider.ts
+  llm.ts, providers.ts, resolve-provider.ts, prompt.ts
   vacancy.ts (fetchVacancyText), cv-import.ts (PDF/DOCX), docx.ts, cv-templates.ts
   pipeline.ts, profile-import.ts, web-push.ts
   utils.ts, format.ts, application-serialize.ts, vacancy-serialize.ts, vacancy-apply.ts, stage-outcome.ts
@@ -86,7 +88,9 @@ Telegram-каналы) — общие.
 | `users` | `email` (unique, lowercase), `passwordHash` (bcrypt), `name` |
 | `apikeys` | `userId`, `provider`, `label`, `baseUrl`, `modelName`, `apiKeyEnc` (AES), `keyHint`, `isDefault` |
 | `profiles` | `userId`, `label`, `data` (CvFormValues), `isDefault` |
-| `generatedcvs` | `userId`, `applicationId?`, `profileId?`, `adaptedCv`, `inputSnapshot`, `lang`, `source` (`generated`/`import`), `templateId?`, `accentColor?` |
+| `cvprompts` | `userId`, `name`, `content` (инструкции LLM), `isDefault` |
+| `cvthemes` | `userId`, `name`, `font`, `accent`, `body`, `gray`, `heading` (`underline`/`bar`/`plain`), `accentRule`, `isDefault` |
+| `generatedcvs` | `userId`, `applicationId?`, `profileId?`, `adaptedCv`, `inputSnapshot`, `lang`, `source` (`generated`/`import`), `templateId?`, `accentColor?`, `themeId?` |
 | `pipelinestages` | `userId`, `name`, `order`, `color`, `type` (`start`/`active`/`terminal`), `terminalResult?` |
 | `applications` | `userId`, `company`, `role`, `companyDomain?`, `country?`, `salaryMin/Max?`, `currency?`, `sourceType?`, `sourceUrl?`, `vacancyText?`, `cvId?`, `stageId`, `timeline[]`, `contactIds[]`, `notes?`, `sentChannel?/sentTo?/sentAt?`, `offerSalary?/offerCurrency?/offerBenefits?/offerRemote?`, `visibility` (`private`/`team`), `shareSalary`, `shareNotes`, `archived` |
 | `contacts` | `userId`, `name`, `email?`, `phone?`, `telegram?`, `linkedin?`, `company?`, `role?`, `notes?` |
@@ -124,17 +128,22 @@ OpenAI-совместимые (`POST {baseUrl}/chat/completions`).
 ### Генерация (`lib/llm.ts`)
 
 `generateCv(input, provider)` → `AdaptedCv` (3 режима + правила честности/senior-стиля).
-`parseCvFromText(text, provider)` → `{ adaptedCv, form }` — честный разбор готового CV
-(используется при импорте PDF/DOCX). Ответы валидируются zod-схемами.
+Параметр `length` (`free`/`one_page`) добавляет инструкцию «уместить на одну страницу».
+Параметр `customPrompt` (инструкции пользователя) заменяет дефолтный стилевой блок; данные
+формы и строгая JSON-схема всегда добавляются. Плейсхолдеры `{{...}}` (`lib/prompt.ts`,
+`renderPrompt`) подставляют данные кандидата/вакансии. `parseCvFromText(text, provider)` →
+`{ adaptedCv, form }` — честный разбор готового CV (используется при импорте PDF/DOCX).
+Ответы валидируются zod-схемами.
 
 **Контракт `AdaptedCv`**: `{ lang, name, title_line, header_note?, contacts[],
 sections[] }`, где `sections` — discriminated union (`paragraph`/`bullets`/`experience`/`projects`).
 
 ### DOCX (`lib/docx.ts` + `lib/cv-templates.ts`)
 
-`buildDocx(cv, { template, accentColor })` → `Buffer`. Шаблоны: `classic` (подчёркнутые
+`buildDocx(cv, { template, accentColor, theme })` → `Buffer`. Шаблоны: `classic` (подчёркнутые
 заголовки), `modern` (левая акцентная полоса + линия под шапкой), `minimal`
-(монохром). Цвет акцента переопределяется.
+(монохром). Цвет акцента переопределяется. Пользовательская тема (`CvThemeStyle`: шрифт,
+цвета, стиль заголовков, акцентная линия) переопределяет пресет.
 
 ### Импорт CV (`lib/cv-import.ts`)
 
@@ -152,8 +161,8 @@ zod-валидация, проверка владельца/прав.
 |---|---|
 | `POST /api/register` | Регистрация (email, password ≥ 8, name?) |
 | `*/api/auth/[...nextauth]` | NextAuth (credentials) |
-| `POST /api/generate` | `CvFormValues + mode + disclaimerAccepted + save? + templateId? + accentColor? + applicationId?/profileId?` → DOCX (опц. сохранение + привязка) |
-| `GET /api/generated-cvs/:id/download` | DOCX из сохранённого `AdaptedCv` (с шаблоном/цветом) |
+| `POST /api/generate` | `CvFormValues + mode + disclaimerAccepted + save? + templateId? + accentColor? + length? + customPrompt? + themeId? + applicationId?/profileId?` → DOCX (опц. сохранение + привязка) |
+| `GET /api/generated-cvs/:id/download` | DOCX из сохранённого `AdaptedCv` (с шаблоном/цветом/темой) |
 | `POST /api/cv-import` | multipart (PDF/DOCX) + `applicationId?` → разбор и сохранение как `GeneratedCv` |
 
 ### Ключи, профили, воронка
@@ -161,6 +170,8 @@ zod-валидация, проверка владельца/прав.
 |---|---|
 | `GET/POST /api/keys`, `PATCH/DELETE /api/keys/:id` | API-ключи (шифрование, маскирование) |
 | `GET/POST /api/profiles`, `POST /api/profiles/import`, `PATCH/DELETE /api/profiles/:id` | Профили (мастер-данные CV, импорт yaml/json) |
+| `GET/POST /api/cv-prompts`, `PATCH/DELETE /api/cv-prompts/:id` | Пользовательские промты (инструкции LLM) |
+| `GET/POST /api/cv-themes`, `PATCH/DELETE /api/cv-themes/:id` | Пользовательские темы оформления CV |
 | `GET /api/stages`, `PUT /api/stages` | Этапы воронки (авто-сид + полная замена) |
 
 ### Отклики, контакты, собеседования
@@ -243,8 +254,9 @@ JWT (`token.sub` = id) → `session.user.id`. `proxy.ts` защищает `/dash
 
 ### Генерация CV
 `Generator` → вакансия (ссылка/текст) → `ModeSelector` → (дисклеймер) → `CvForm`
-(шаблон + цвет на последнем шаге) → `POST /api/generate` → `resolveProvider` →
-`generateCv` → опц. сохранение → `buildDocx` → файл.
+(объём «произвольная форма/одна страница», шаблон/цвет/тема, «свой промт» на последнем
+шаге) → `POST /api/generate` → `resolveProvider` → `generateCv` → опц. сохранение →
+`buildDocx` → файл.
 
 ### Трекинг отклика
 `/applications/new` → `POST /api/applications` (этап «Черновик»); kanban
