@@ -103,6 +103,7 @@ export async function POST(request: Request) {
       template: input.templateId,
       accentColor: input.accentColor,
       theme: themeStyle,
+      length: input.length,
     })
     return new Response(new Uint8Array(buffer), {
       headers: {

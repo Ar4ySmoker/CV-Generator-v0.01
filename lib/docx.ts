@@ -21,15 +21,18 @@ interface Theme {
   gray: string
   heading: "underline" | "bar" | "plain"
   accentRule: boolean
+  compact: boolean
 }
 
 export interface BuildDocxOptions {
   template?: string
   accentColor?: string
   theme?: CvThemeStyle
+  length?: "free" | "one_page"
 }
 
 const LINE = Math.round(1.08 * 240)
+const COMPACT_LINE = Math.round(1.0 * 240)
 
 const half = (pt: number) => Math.round(pt * 2)
 const twip = (pt: number) => Math.round(pt * 20)
@@ -41,11 +44,15 @@ interface RunOpts {
   color?: string
 }
 
+function baseSize(theme: Theme): number {
+  return theme.compact ? 10 : 10.5
+}
+
 function run(text: string, theme: Theme, opts: RunOpts = {}): TextRun {
   return new TextRun({
     text,
     font: theme.font,
-    size: half(opts.size ?? 10.5),
+    size: half(opts.size ?? baseSize(theme)),
     bold: opts.bold,
     italics: opts.italic,
     color: opts.color ?? theme.body,
@@ -68,7 +75,7 @@ function para(
     spacing: {
       before: twip(opts.before ?? 0),
       after: twip(opts.after ?? 4),
-      line: LINE,
+      line: theme.compact ? COMPACT_LINE : LINE,
       lineRule: "auto",
     },
     indent:
@@ -90,12 +97,18 @@ function textPara(
 
 function heading(text: string, theme: Theme): Paragraph {
   const spacing = {
-    before: twip(12),
+    before: twip(theme.compact ? 8 : 12),
     after: twip(4),
-    line: LINE,
+    line: theme.compact ? COMPACT_LINE : LINE,
     lineRule: "auto" as const,
   }
-  const child = [run(text, theme, { size: 12, bold: true, color: theme.accent })]
+  const child = [
+    run(text, theme, {
+      size: theme.compact ? 11 : 12,
+      bold: true,
+      color: theme.accent,
+    }),
+  ]
 
   if (theme.heading === "bar") {
     return new Paragraph({
@@ -147,7 +160,11 @@ function bullet(text: string, theme: Theme): Paragraph {
   return new Paragraph({
     children: [run(text, theme)],
     bullet: { level: 0 },
-    spacing: { after: twip(2), line: LINE, lineRule: "auto" },
+    spacing: {
+      after: twip(2),
+      line: theme.compact ? COMPACT_LINE : LINE,
+      lineRule: "auto",
+    },
   })
 }
 
@@ -172,7 +189,7 @@ function renderExperience(
     if (companyPlace) runs.push(run(`, ${companyPlace}`, theme))
     if (it.url) {
       runs.push(
-        run(`   ${it.url}`, theme, { size: 9.5, italic: true, color: theme.gray })
+        run(`   ${it.url}`, theme, { size: theme.compact ? 9 : 9.5, italic: true, color: theme.gray })
       )
     }
     result.push(para(theme, runs, { before: 8, after: 2 }))
@@ -183,7 +200,7 @@ function renderExperience(
       result.push(
         para(
           theme,
-          [run(`${techLabel}: ${it.tech}`, theme, { size: 9.5, italic: true, color: theme.gray })],
+          [run(`${techLabel}: ${it.tech}`, theme, { size: theme.compact ? 9 : 9.5, italic: true, color: theme.gray })],
           { after: 2, leftIndentPt: 18 }
         )
       )
@@ -210,7 +227,7 @@ function renderProjects(
       result.push(
         para(
           theme,
-          [run(`${techLabel}: ${it.tech}`, theme, { size: 9.5, italic: true, color: theme.gray })],
+          [run(`${techLabel}: ${it.tech}`, theme, { size: theme.compact ? 9 : 9.5, italic: true, color: theme.gray })],
           { after: 2, leftIndentPt: 18 }
         )
       )
@@ -225,8 +242,9 @@ export async function buildDocx(
 ): Promise<Buffer> {
   const template = cvTemplateById(options.template)
   const accent = options.accentColor?.replace(/^#/, "")
+  const compact = options.length === "one_page"
   const theme: Theme = options.theme
-    ? { ...options.theme, accent: accent ?? options.theme.accent }
+    ? { ...options.theme, accent: accent ?? options.theme.accent, compact }
     : {
         font: template.font,
         accent: accent ?? template.accent,
@@ -234,6 +252,7 @@ export async function buildDocx(
         gray: template.gray,
         heading: template.heading,
         accentRule: template.accentRule,
+        compact,
       }
 
   const techLabel = cv.lang === "en" ? "Technologies" : "Технологии"
@@ -246,20 +265,36 @@ export async function buildDocx(
     )
   }
   if (cv.title_line) {
-    children.push(textPara(cv.title_line, theme, { size: 12, bold: true, after: 2 }))
+    children.push(
+      textPara(cv.title_line, theme, {
+        size: theme.compact ? 11 : 12,
+        bold: true,
+        after: 2,
+      })
+    )
   }
   if (cv.header_note) {
     children.push(
-      textPara(cv.header_note, theme, { size: 10.5, italic: true, color: theme.gray, after: 4 })
+      textPara(cv.header_note, theme, {
+        size: theme.compact ? 10 : 10.5,
+        italic: true,
+        color: theme.gray,
+        after: 4,
+      })
     )
   }
 
   if (cv.contacts.length > 0) {
     const runs: TextRun[] = []
     cv.contacts.forEach((c, i) => {
-      runs.push(run(c, theme, { size: 10 }))
+      runs.push(run(c, theme, { size: theme.compact ? 9.5 : 10 }))
       if (i < cv.contacts.length - 1) {
-        runs.push(run("   |   ", theme, { size: 10, color: theme.gray }))
+        runs.push(
+          run("   |   ", theme, {
+            size: theme.compact ? 9.5 : 10,
+            color: theme.gray,
+          })
+        )
       }
     })
     children.push(para(theme, runs, { after: 6 }))
@@ -273,16 +308,40 @@ export async function buildDocx(
     if (sec.heading) children.push(heading(sec.heading, theme))
     switch (sec.type) {
       case "paragraph":
-        for (const line of sec.lines) children.push(textPara(line, theme))
+        for (const line of sec.lines.slice(0, compact ? 1 : undefined)) {
+          children.push(textPara(line, theme))
+        }
         break
       case "bullets":
-        for (const item of sec.items) children.push(bullet(item, theme))
+        for (const item of sec.items.slice(0, compact ? 6 : undefined)) {
+          children.push(bullet(item, theme))
+        }
         break
       case "experience":
-        children.push(...renderExperience(sec.items, techLabel, theme))
+        children.push(
+          ...renderExperience(
+            compact
+              ? sec.items
+                  .slice(0, 2)
+                  .map((it) => ({ ...it, bullets: it.bullets.slice(0, 2) }))
+              : sec.items,
+            techLabel,
+            theme
+          )
+        )
         break
       case "projects":
-        children.push(...renderProjects(sec.items, techLabel, theme))
+        children.push(
+          ...renderProjects(
+            compact
+              ? sec.items
+                  .slice(0, 1)
+                  .map((it) => ({ ...it, bullets: it.bullets.slice(0, 3) }))
+              : sec.items,
+            techLabel,
+            theme
+          )
+        )
         break
     }
   }
@@ -291,7 +350,9 @@ export async function buildDocx(
     creator: "CV Generator",
     styles: {
       default: {
-        document: { run: { font: theme.font, size: half(10.5), color: theme.body } },
+        document: {
+          run: { font: theme.font, size: half(baseSize(theme)), color: theme.body },
+        },
       },
     },
     sections: [
@@ -299,10 +360,10 @@ export async function buildDocx(
         properties: {
           page: {
             margin: {
-              top: convertInchesToTwip(0.7),
-              bottom: convertInchesToTwip(0.7),
-              left: convertInchesToTwip(0.8),
-              right: convertInchesToTwip(0.8),
+              top: convertInchesToTwip(compact ? 0.5 : 0.7),
+              bottom: convertInchesToTwip(compact ? 0.5 : 0.7),
+              left: convertInchesToTwip(compact ? 0.55 : 0.8),
+              right: convertInchesToTwip(compact ? 0.55 : 0.8),
             },
           },
         },

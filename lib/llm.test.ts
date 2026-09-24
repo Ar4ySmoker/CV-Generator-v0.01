@@ -178,6 +178,60 @@ describe("generateCvWithSelection", () => {
     expect(cv.name).toBe("Иван Иванов")
     expect(count).toBe(1)
   })
+
+  it("caps the subset to fit one page when length=one_page", async () => {
+    const multi: GenerateRequest = {
+      ...input,
+      skills: [0, 1, 2, 3, 4, 5, 6, 7].map((i) => ({
+        name: `Skill${i}`,
+        level: "intermediate",
+      })),
+      experience: [0, 1, 2, 3].map((i) => ({
+        period: "2020",
+        role: `Role${i}`,
+        company: "C",
+        bullets: [{ value: "b" }],
+      })),
+      projects: [],
+      education: [],
+      languages: [],
+      vacancy: { source: "text", text: "Вакансия" },
+      length: "one_page",
+    }
+    const calls: string[] = []
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (_url: string, init: { body: string }) => {
+        const body = JSON.parse(init.body) as {
+          messages: Array<{ role: string; content: string }>
+        }
+        calls.push(body.messages[1].content)
+        const content =
+          calls.length === 1
+            ? JSON.stringify({
+                experience: [0, 1, 2, 3],
+                skills: [0, 1, 2, 3, 4, 5, 6, 7],
+                projects: [],
+                education: [],
+                languages: [],
+              })
+            : JSON.stringify(validAdaptedCv)
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ choices: [{ message: { content } }] }),
+        }
+      })
+    )
+    await generateCvWithSelection(multi, provider)
+    expect(calls.length).toBe(2)
+    expect(calls[1]).toContain("Role0")
+    expect(calls[1]).toContain("Role1")
+    expect(calls[1]).not.toContain("Role2")
+    expect(calls[1]).not.toContain("Role3")
+    expect(calls[1]).not.toContain("Skill6")
+    expect(calls[1]).not.toContain("Skill7")
+  })
 })
 
 describe("parseCvFromText", () => {

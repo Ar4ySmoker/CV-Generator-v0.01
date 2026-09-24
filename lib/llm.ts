@@ -122,12 +122,14 @@ const HONESTY = `Честность (обязательно):
 - Если вакансия требует того, чего у кандидата нет — не выдумывай, просто расставь акценты на том, что есть.
 - Язык CV ("lang") — по языку вакансии. Если вакансии нет — "ru".`
 
-const ONE_PAGE = `Формат "одна страница" (обязательно):
-- Итоговое CV должно умещаться на одну страницу A4.
-- "О себе" — 1-2 предложения, только самое ценное.
-- Каждая позиция опыта и проекта — максимум 3 буллета.
-- Оставь только самые релевантные вакансии навыки и опыт; нерелевантное опусти.
-- Секции без воды, минимальное количество пунктов в списках.`
+const ONE_PAGE = `Формат "одна страница" (жёсткий лимит A4, обязательно соблюсти):
+- Весь текст CV — не более ~300 слов.
+- "О себе" — ОДНО предложение (до 120 знаков), только главный результат.
+- "Технические навыки" — не более 6 строк; не перечисляй весь стек, оставь только то, что требует вакансия.
+- "Опыт работы" — не более 2 позиций, каждая с 1-2 короткими буллетами.
+- "Проекты" — не более 1 проекта с 2-3 короткими буллетами.
+- "Образование" — 1 строка. "Языки" — не более 2 строк.
+- Убери "воду", длинные перечисления технологий и списки интеграций. Если контента много — жертвуй менее релевантным, а не сжимай всё до нечитаемости.`
 
 function buildDataBlock(input: GenerateRequest): string {
   const data = {
@@ -348,10 +350,14 @@ export async function selectRelevant(
 ): Promise<RelevantSubset> {
   const system =
     "Ты — ассистент отбора релевантного опыта. Из полного профиля кандидата выбери только то, что релевантно вакансии. Возвращаешь строго валидный JSON."
+  const onePageRule =
+    input.length === "one_page"
+      ? `\n\nФормат "одна страница": выбери не более 2 позиций опыта, 1 проекта, 6 навыков, 1 пункта образования и 2 языков — только самое релевантное вакансии.`
+      : ""
   const raw = await callChatCompletion(
     provider,
     system,
-    `${buildSelectionDataBlock(input)}\n\n${SELECTION_OUTPUT}`
+    `${buildSelectionDataBlock(input)}\n\n${SELECTION_OUTPUT}${onePageRule}`
   )
   const parsed = JSON.parse(stripFences(raw)) as unknown
   const result = selectionSchema.safeParse(parsed)
@@ -364,6 +370,16 @@ export async function selectRelevant(
 function pick<T>(arr: T[], indices: number[]): T[] {
   const wanted = new Set(indices)
   return arr.filter((_, i) => wanted.has(i))
+}
+
+function capSubset(sel: RelevantSubset): RelevantSubset {
+  return {
+    experience: sel.experience.slice(0, 2),
+    skills: sel.skills.slice(0, 6),
+    projects: sel.projects.slice(0, 1),
+    education: sel.education.slice(0, 1),
+    languages: sel.languages.slice(0, 2),
+  }
 }
 
 function buildSubset(
@@ -398,7 +414,11 @@ export async function generateCvWithSelection(
   }
 
   try {
-    const subset = buildSubset(input, await selectRelevant(input, provider))
+    let sel = await selectRelevant(input, provider)
+    if (input.length === "one_page") {
+      sel = capSubset(sel)
+    }
+    const subset = buildSubset(input, sel)
     const kept =
       subset.experience.length + subset.skills.length + subset.projects.length
     if (kept === 0) {
