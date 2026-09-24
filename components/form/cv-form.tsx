@@ -30,6 +30,9 @@ import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 
 import { cvFormSchema, type CvFormValues, type CvLength, type Mode } from "@/lib/schemas"
+import { filenameFromContentDisposition } from "@/lib/format"
+
+import type { VacancyRef } from "@/components/form/post-generate-actions"
 
 import { PersonalStep } from "@/components/form/steps/personal-step"
 import { SkillsStep } from "@/components/form/steps/skills-step"
@@ -177,7 +180,7 @@ export function CvForm({
   initialVacancy?: { source: "text" | "url"; text?: string; url?: string }
   generateExtras?: { save?: boolean; applicationId?: string; profileId?: string }
   allowSaveProfile?: boolean
-  onGenerated?: () => void
+  onGenerated?: (ctx?: { vacancy?: VacancyRef }) => void
   submitMode?: "generate" | "saveProfile"
   profileId?: string
   initialLabel?: string
@@ -341,7 +344,9 @@ export function CvForm({
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url
-      a.download = "CV.docx"
+      a.download = filenameFromContentDisposition(
+        res.headers.get("Content-Disposition")
+      )
       document.body.appendChild(a)
       a.click()
       a.remove()
@@ -455,7 +460,13 @@ export function CvForm({
           <Button
             variant="outline"
             onClick={() => {
-              onGenerated?.()
+              const vacancy = form.getValues().vacancy
+              onGenerated?.({
+                vacancy:
+                  vacancy?.text?.trim() || vacancy?.url?.trim()
+                    ? vacancy
+                    : undefined,
+              })
               onBack()
             }}
           >

@@ -71,3 +71,24 @@ export function buildCvFilename(opts: {
     .filter(Boolean)
   return parts.length > 0 ? `CV_${parts.join("_")}.docx` : "CV.docx"
 }
+
+export function contentDispositionAttachment(filename: string): string {
+  if (/^[\x20-\x7E]+$/.test(filename)) {
+    return `attachment; filename="${filename}"`
+  }
+  return `attachment; filename="CV.docx"; filename*=UTF-8''${encodeURIComponent(filename)}`
+}
+
+export function filenameFromContentDisposition(header: string | null): string {
+  if (!header) return "CV.docx"
+  const star = /filename\*=UTF-8''([^;]+)/i.exec(header)
+  if (star?.[1]) {
+    try {
+      return decodeURIComponent(star[1])
+    } catch {
+      // fall through to plain filename
+    }
+  }
+  const plain = /filename="?([^";]+)"?/i.exec(header)
+  return plain?.[1] ?? "CV.docx"
+}

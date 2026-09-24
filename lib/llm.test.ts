@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { generateCv, generateCvWithSelection, parseCvFromText } from "./llm"
+import { extractVacancyMeta, generateCv, generateCvWithSelection, parseCvFromText } from "./llm"
 import type { GenerateRequest } from "./schemas"
 
 const provider = { baseUrl: "https://mock.local", apiKey: "k", model: "m" }
@@ -265,5 +265,37 @@ describe("parseCvFromText", () => {
   it("throws on a missing form", async () => {
     mockFetch(JSON.stringify({ adaptedCv: validAdaptedCv }))
     await expect(parseCvFromText("some text", provider)).rejects.toThrow()
+  })
+})
+
+describe("extractVacancyMeta", () => {
+  const validMeta = {
+    company: "Aston",
+    role: "Frontend Developer",
+    country: "Москва",
+    salaryMin: 100000,
+    salaryMax: 150000,
+    currency: "RUB",
+  }
+
+  it("parses a valid response", async () => {
+    mockFetch(JSON.stringify(validMeta))
+    const meta = await extractVacancyMeta("текст вакансии", provider)
+    expect(meta.company).toBe("Aston")
+    expect(meta.role).toBe("Frontend Developer")
+    expect(meta.salaryMin).toBe(100000)
+    expect(meta.currency).toBe("RUB")
+  })
+
+  it("accepts missing optional fields", async () => {
+    mockFetch(JSON.stringify({ company: "Aston", role: "Dev" }))
+    const meta = await extractVacancyMeta("текст", provider)
+    expect(meta.company).toBe("Aston")
+    expect(meta.country).toBeUndefined()
+  })
+
+  it("throws on invalid response", async () => {
+    mockFetch(JSON.stringify({ salaryMin: "не число" }))
+    await expect(extractVacancyMeta("текст", provider)).rejects.toThrow()
   })
 })

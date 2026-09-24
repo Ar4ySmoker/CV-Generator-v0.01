@@ -518,6 +518,57 @@ const PARSE_OUTPUT_CONTRACT = `Верни ТОЛЬКО валидный JSON б�
 - Пустые секции/поля опускай. Если контактов нет — "contacts": [].
 - "level" навыков — по косвенным признакам в тексте, по умолчанию "intermediate".`
 
+export const vacancyMetaSchema = z.object({
+  company: z.string().trim().optional(),
+  role: z.string().trim().optional(),
+  country: z.string().trim().optional(),
+  salaryMin: z.number().optional(),
+  salaryMax: z.number().optional(),
+  currency: z.string().trim().optional(),
+})
+
+export type VacancyMeta = z.infer<typeof vacancyMetaSchema>
+
+export async function extractVacancyMeta(
+  text: string,
+  provider: ChatProvider
+): Promise<VacancyMeta> {
+  const system =
+    "Ты — ассистент, который извлекает структурированные данные о вакансии из её текста. Возвращаешь строго валидный JSON."
+
+  const user = `Из текста вакансии извлеки базовые данные.
+
+Текст вакансии:
+"""
+${text}
+"""
+
+Верни ТОЛЬКО валидный JSON без пояснений и без markdown-обёрток:
+{
+  "company": "название компании",
+  "role": "название должности",
+  "country": "страна или город",
+  "salaryMin": 100000,
+  "salaryMax": 150000,
+  "currency": "RUB"
+}
+
+Правила:
+- "company" и "role" обязательны; если их нет в тексте — верни пустую строку "".
+- "country" — страна/город, если указан; иначе опусти поле.
+- "salaryMin"/"salaryMax" — только числа (без валюты и разделителей); если зарплата не указана — опусти эти поля.
+- "currency" — код валюты (RUB/USD/EUR/KZT…), если указан.
+- НЕ выдумывай данные, которых нет в тексте.`
+
+  const raw = await callChatCompletion(provider, system, user)
+  const parsed = JSON.parse(stripFences(raw)) as unknown
+  const result = vacancyMetaSchema.safeParse(parsed)
+  if (!result.success) {
+    throw new Error("Некорректный ответ модели при разборе вакансии")
+  }
+  return result.data
+}
+
 export async function parseCvFromText(
   text: string,
   provider: ChatProvider

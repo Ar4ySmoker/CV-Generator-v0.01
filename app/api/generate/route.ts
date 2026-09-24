@@ -2,7 +2,7 @@ import { generateRequestSchema } from "@/lib/schemas"
 import { generateCvWithSelection } from "@/lib/llm"
 import { buildDocx } from "@/lib/docx"
 import type { CvThemeStyle } from "@/lib/cv-templates"
-import { buildCvFilename } from "@/lib/format"
+import { buildCvFilename, contentDispositionAttachment } from "@/lib/format"
 import { fetchVacancyText, VacancyUrlError } from "@/lib/vacancy"
 import { auth } from "@/lib/auth"
 import { resolveProvider } from "@/lib/resolve-provider"
@@ -125,7 +125,7 @@ export async function POST(request: Request) {
     return new Response(new Uint8Array(buffer), {
       headers: {
         "Content-Type": DOCX_CONTENT_TYPE,
-        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Disposition": contentDispositionAttachment(filename),
       },
     })
   } catch (err) {

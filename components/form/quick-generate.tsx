@@ -9,8 +9,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 
 import { GenerateOptions } from "@/components/form/generate-options"
+import type { VacancyRef } from "@/components/form/post-generate-actions"
 import type { CustomThemeOption } from "@/components/form/template-picker"
 
+import { filenameFromContentDisposition } from "@/lib/format"
 import type { CvFormValues, CvLength, Mode } from "@/lib/schemas"
 
 export function QuickGenerate({
@@ -32,7 +34,7 @@ export function QuickGenerate({
   allowSaveProfile?: boolean
   onBack: () => void
   onManual: () => void
-  onGenerated?: () => void
+  onGenerated?: (ctx?: { vacancy?: VacancyRef }) => void
 }) {
   const [cvLength, setCvLength] = useState<CvLength>("free")
   const [templateId, setTemplateId] = useState("classic")
@@ -121,12 +123,14 @@ export function QuickGenerate({
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url
-      a.download = "CV.docx"
+      a.download = filenameFromContentDisposition(
+        res.headers.get("Content-Disposition")
+      )
       document.body.appendChild(a)
       a.click()
       a.remove()
       URL.revokeObjectURL(url)
-      onGenerated?.()
+      onGenerated?.({ vacancy: vacancyValue })
     } catch (err) {
       setError(err instanceof Error ? err.message : "Неизвестная ошибка")
     } finally {

@@ -19,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { CvForm } from "@/components/form/cv-form"
 import { DisclaimerDialog } from "@/components/form/disclaimer-dialog"
 import { ModeSelector } from "@/components/form/mode-selector"
+import { PostGenerateActions, type VacancyRef } from "@/components/form/post-generate-actions"
 import { QuickGenerate } from "@/components/form/quick-generate"
 
 import type { CvFormValues, Mode } from "@/lib/schemas"
@@ -27,9 +28,10 @@ export interface GeneratorOptions {
   initialValues?: CvFormValues
   vacancyText?: string
   generateExtras?: { save?: boolean; applicationId?: string; profileId?: string }
-  onGenerated?: () => void
+  onGenerated?: (ctx?: { vacancy?: VacancyRef }) => void
   showVacancyEntry?: boolean
   showProfilePicker?: boolean
+  showPostGenerate?: boolean
 }
 
 interface ProfileItem {
@@ -46,6 +48,7 @@ export function Generator({
   onGenerated,
   showVacancyEntry = true,
   showProfilePicker = true,
+  showPostGenerate = false,
 }: GeneratorOptions) {
   const { status } = useSession()
   const [mode, setMode] = useState<Mode | null>(null)
@@ -56,6 +59,10 @@ export function Generator({
   const [profiles, setProfiles] = useState<ProfileItem[]>([])
   const [selectedProfileId, setSelectedProfileId] = useState("")
   const [manual, setManual] = useState(false)
+  const [generated, setGenerated] = useState(false)
+  const [generatedVacancy, setGeneratedVacancy] = useState<VacancyRef | undefined>(
+    undefined
+  )
 
   useEffect(() => {
     if (status !== "authenticated" || !showProfilePicker || initialValues) return
@@ -94,6 +101,16 @@ export function Generator({
     setAccepted(false)
     setDisclaimerOpen(false)
     setManual(false)
+    setGenerated(false)
+    setGeneratedVacancy(undefined)
+  }
+
+  function handleGenerated(ctx?: { vacancy?: VacancyRef }) {
+    if (showPostGenerate) {
+      setGenerated(true)
+      setGeneratedVacancy(ctx?.vacancy)
+    }
+    onGenerated?.(ctx)
   }
 
   const initialVacancy = vacancyValue.trim()
@@ -123,7 +140,7 @@ export function Generator({
           allowSaveProfile={status === "authenticated"}
           onBack={reset}
           onManual={() => setManual(true)}
-          onGenerated={onGenerated}
+          onGenerated={handleGenerated}
         />
       )
     } else {
@@ -137,7 +154,7 @@ export function Generator({
           initialVacancy={initialVacancy}
           generateExtras={generateExtras}
           allowSaveProfile={status === "authenticated"}
-          onGenerated={onGenerated}
+          onGenerated={handleGenerated}
         />
       )
     }
@@ -221,6 +238,9 @@ export function Generator({
   return (
     <>
       {content}
+      {showPostGenerate && generated ? (
+        <PostGenerateActions vacancy={generatedVacancy} />
+      ) : null}
       <DisclaimerDialog
         open={disclaimerOpen}
         onConfirm={() => {

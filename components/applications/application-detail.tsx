@@ -555,6 +555,20 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
                 </div>
               </div>
 
+              <div className="flex flex-col gap-1.5">
+                <Label>Текст вакансии</Label>
+                <Textarea
+                  defaultValue={app.vacancyText ?? ""}
+                  placeholder="Вставьте описание вакансии, если ссылка недоступна…"
+                  className="min-h-32"
+                  onBlur={(e) => {
+                    if (e.target.value !== (app.vacancyText ?? "")) {
+                      patch({ vacancyText: e.target.value || null })
+                    }
+                  }}
+                />
+              </div>
+
               {isOfferStage ? (
                 <>
                   <Separator />

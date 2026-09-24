@@ -125,7 +125,7 @@ export default function Page() {
               Можно без регистрации — всё генерируется на лету.
             </p>
           </div>
-          <Generator />
+          <Generator showPostGenerate />
         </div>
       </section>
 

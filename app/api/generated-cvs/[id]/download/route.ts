@@ -2,7 +2,7 @@ import { getUserId } from "@/lib/auth"
 import { connectDb } from "@/lib/db"
 import { buildDocx } from "@/lib/docx"
 import type { CvThemeStyle } from "@/lib/cv-templates"
-import { buildCvFilename } from "@/lib/format"
+import { buildCvFilename, contentDispositionAttachment } from "@/lib/format"
 import type { AdaptedCv } from "@/lib/llm"
 import { Application } from "@/lib/models/application"
 import { GeneratedCv } from "@/lib/models/generated-cv"
@@ -65,7 +65,7 @@ export async function GET(
   return new Response(new Uint8Array(buffer), {
     headers: {
       "Content-Type": DOCX_CONTENT_TYPE,
-      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Content-Disposition": contentDispositionAttachment(filename),
     },
   })
 }
