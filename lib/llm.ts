@@ -8,8 +8,10 @@ import {
   languageSchema,
   personalSchema,
   projectSchema,
+  selectionSchema,
   skillSchema,
   type GenerateRequest,
+  type RelevantSubset,
 } from "./schemas"
 
 export const cvLangSchema = z.enum(["ru", "en"])
@@ -283,6 +285,129 @@ export async function generateCv(
   }
 
   return result.data
+}
+
+const SELECTION_OUTPUT = `Верни ТОЛЬКО валидный JSON без пояснений и без markdown-обёрток. Схема:
+
+{
+  "experience": [индексы релевантного опыта],
+  "skills": [индексы релевантных навыков],
+  "projects": [индексы релевантных проектов],
+  "education": [индексы релевантного образования],
+  "languages": [индексы релевантных языков]
+}
+
+Правила:
+- Индексы — целые числа от 0, соответствуют порядку пунктов в переданном профиле.
+- Включи ТОЛЬКО пункты, реально релевантные вакансии. Нерелевантное не включай вообще.
+- Каждая секция — массив индексов (может быть пустым).`
+
+function buildSelectionDataBlock(input: GenerateRequest): string {
+  const experience = input.experience.map((e, i) => ({
+    index: i,
+    role: e.role,
+    company: e.company,
+    tags: e.tags ?? [],
+    bullets: e.bullets.map((b) => b.value),
+  }))
+  const skills = input.skills.map((s, i) => ({
+    index: i,
+    name: s.name,
+    level: s.level,
+  }))
+  const projects = input.projects.map((p, i) => ({
+    index: i,
+    name: p.name,
+    description: p.description,
+    stack: p.stack,
+    tags: p.tags ?? [],
+  }))
+  const education = input.education.map((e, i) => ({ index: i, ...e }))
+  const languages = input.languages.map((l, i) => ({ index: i, ...l }))
+
+  const vacancy =
+    input.vacancy?.source === "url"
+      ? input.vacancy.url
+      : input.vacancy?.text?.trim()
+
+  return `Полный профиль кандидата (каждый пункт имеет индекс):
+
+Опыт: ${JSON.stringify(experience)}
+Навыки: ${JSON.stringify(skills)}
+Проекты: ${JSON.stringify(projects)}
+Образование: ${JSON.stringify(education)}
+Языки: ${JSON.stringify(languages)}
+
+Вакансия:
+"""${vacancy ?? ""}"""`
+}
+
+export async function selectRelevant(
+  input: GenerateRequest,
+  provider: ChatProvider
+): Promise<RelevantSubset> {
+  const system =
+    "Ты — ассистент отбора релевантного опыта. Из полного профиля кандидата выбери только то, что релевантно вакансии. Возвращаешь строго валидный JSON."
+  const raw = await callChatCompletion(
+    provider,
+    system,
+    `${buildSelectionDataBlock(input)}\n\n${SELECTION_OUTPUT}`
+  )
+  const parsed = JSON.parse(stripFences(raw)) as unknown
+  const result = selectionSchema.safeParse(parsed)
+  if (!result.success) {
+    throw new Error("Некорректный ответ модели при отборе опыта")
+  }
+  return result.data
+}
+
+function pick<T>(arr: T[], indices: number[]): T[] {
+  const wanted = new Set(indices)
+  return arr.filter((_, i) => wanted.has(i))
+}
+
+function buildSubset(
+  input: GenerateRequest,
+  sel: RelevantSubset
+): GenerateRequest {
+  return {
+    ...input,
+    experience: pick(input.experience, sel.experience),
+    skills: pick(input.skills, sel.skills),
+    projects: pick(input.projects, sel.projects),
+    education: pick(input.education, sel.education),
+    languages: pick(input.languages, sel.languages),
+  }
+}
+
+export async function generateCvWithSelection(
+  input: GenerateRequest,
+  provider: ChatProvider
+): Promise<AdaptedCv> {
+  const vacancyText =
+    input.vacancy?.source === "url"
+      ? input.vacancy.url
+      : input.vacancy?.text?.trim()
+  const hasData =
+    input.experience.length > 0 ||
+    input.skills.length > 0 ||
+    input.projects.length > 0
+
+  if (!vacancyText || !hasData) {
+    return generateCv(input, provider)
+  }
+
+  try {
+    const subset = buildSubset(input, await selectRelevant(input, provider))
+    const kept =
+      subset.experience.length + subset.skills.length + subset.projects.length
+    if (kept === 0) {
+      return generateCv(input, provider)
+    }
+    return generateCv(subset, provider)
+  } catch {
+    return generateCv(input, provider)
+  }
 }
 
 const PARSE_OUTPUT_CONTRACT = `Верни ТОЛЬКО валидный JSON без пояснений и без markdown-обёрток. Схема:

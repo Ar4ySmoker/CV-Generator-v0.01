@@ -19,8 +19,8 @@ import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
 
-import { CvForm } from "@/components/form/cv-form"
 import { Generator } from "@/components/generator"
+import { ProfileEditor } from "@/components/form/profile-editor"
 
 import type { CvFormValues } from "@/lib/schemas"
 
@@ -147,18 +147,15 @@ export function ProfilesManager() {
       ? profiles.find((p) => p.id === editingId)
       : undefined
     return (
-      <CvForm
-        mode="with_experience"
-        disclaimerAccepted={false}
-        onBack={() => setView("list")}
+      <ProfileEditor
         initialValues={editing?.data}
         initialLabel={editing?.label}
         profileId={editing?.id}
-        submitMode="saveProfile"
         onSaved={() => {
           setView("list")
           load()
         }}
+        onCancel={() => setView("list")}
       />
     )
   }

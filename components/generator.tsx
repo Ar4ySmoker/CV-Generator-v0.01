@@ -19,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { CvForm } from "@/components/form/cv-form"
 import { DisclaimerDialog } from "@/components/form/disclaimer-dialog"
 import { ModeSelector } from "@/components/form/mode-selector"
+import { QuickGenerate } from "@/components/form/quick-generate"
 
 import type { CvFormValues, Mode } from "@/lib/schemas"
 
@@ -54,6 +55,7 @@ export function Generator({
   const [vacancyValue, setVacancyValue] = useState("")
   const [profiles, setProfiles] = useState<ProfileItem[]>([])
   const [selectedProfileId, setSelectedProfileId] = useState("")
+  const [manual, setManual] = useState(false)
 
   useEffect(() => {
     if (status !== "authenticated" || !showProfilePicker || initialValues) return
@@ -91,6 +93,7 @@ export function Generator({
     setMode(null)
     setAccepted(false)
     setDisclaimerOpen(false)
+    setManual(false)
   }
 
   const initialVacancy = vacancyValue.trim()
@@ -101,21 +104,43 @@ export function Generator({
       }
     : undefined
 
+  const effectiveVacancy =
+    initialVacancy ??
+    (vacancyText?.trim()
+      ? { source: "text" as const, text: vacancyText.trim() }
+      : undefined)
+
   let content
   if (mode && (mode !== "generate_experience" || accepted)) {
-    content = (
-      <CvForm
-        mode={mode}
-        disclaimerAccepted={accepted}
-        onBack={reset}
-        initialValues={effectiveInitialValues}
-        vacancyText={vacancyText}
-        initialVacancy={initialVacancy}
-        generateExtras={generateExtras}
-        allowSaveProfile={status === "authenticated"}
-        onGenerated={onGenerated}
-      />
-    )
+    if (!manual && effectiveInitialValues) {
+      content = (
+        <QuickGenerate
+          profileLabel={selectedProfile?.label}
+          profileData={effectiveInitialValues}
+          mode={mode}
+          vacancy={effectiveVacancy}
+          generateExtras={generateExtras}
+          allowSaveProfile={status === "authenticated"}
+          onBack={reset}
+          onManual={() => setManual(true)}
+          onGenerated={onGenerated}
+        />
+      )
+    } else {
+      content = (
+        <CvForm
+          mode={mode}
+          disclaimerAccepted={accepted}
+          onBack={reset}
+          initialValues={effectiveInitialValues}
+          vacancyText={vacancyText}
+          initialVacancy={initialVacancy}
+          generateExtras={generateExtras}
+          allowSaveProfile={status === "authenticated"}
+          onGenerated={onGenerated}
+        />
+      )
+    }
   } else {
     content = (
       <div className="flex flex-col gap-6">

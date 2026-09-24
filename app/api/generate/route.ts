@@ -1,5 +1,5 @@
 import { generateRequestSchema } from "@/lib/schemas"
-import { generateCv } from "@/lib/llm"
+import { generateCvWithSelection } from "@/lib/llm"
 import { buildDocx } from "@/lib/docx"
 import type { CvThemeStyle } from "@/lib/cv-templates"
 import { fetchVacancyText, VacancyUrlError } from "@/lib/vacancy"
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
   try {
     const session = await auth()
     const provider = await resolveProvider(session?.user?.id)
-    const cv = await generateCv(input, provider)
+    const cv = await generateCvWithSelection(input, provider)
 
     let themeStyle: CvThemeStyle | undefined
     if (input.themeId && session?.user?.id) {

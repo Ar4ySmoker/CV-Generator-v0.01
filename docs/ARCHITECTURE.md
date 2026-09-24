@@ -51,7 +51,7 @@ app/
 components/
   ui/                             # shadcn-компоненты
   app/                            # app-sidebar.tsx, app-shell.tsx
-  form/                           # cv-form, template-picker, mode-selector, disclaimer-dialog, steps/*
+  form/                           # cv-form, profile-editor, quick-generate, generate-options, template-picker, mode-selector, disclaimer-dialog, steps/*
   generator.tsx
   applications/                   # applications-board, pipeline-board, application-card, application-detail, activity-timeline, company-logo, stage-badge, contact-picker, cv-import, send/response/interview-dialog, application-form, types.ts
   dashboard/, offers/, contacts/
@@ -110,8 +110,8 @@ Telegram-каналы) — общие.
 > встроенным методом документа. В `ApiKey` поле называется `modelName`.
 
 `CvFormValues` — см. `lib/schemas.ts`: `personal`, `skills[]` (`name`+`level`),
-`experience[]` (с `bullets[]` из `{value}`), `education[]`, `projects[]`, `languages[]`,
-`vacancy?`.
+`experience[]` (с `bullets[]` из `{value}` и `tags` — домены), `education[]`,
+`projects[]` (с `tags`), `languages[]`, `vacancy?`.
 
 ## 4. LLM-слой
 
@@ -134,6 +134,16 @@ OpenAI-совместимые (`POST {baseUrl}/chat/completions`).
 `renderPrompt`) подставляют данные кандидата/вакансии. `parseCvFromText(text, provider)` →
 `{ adaptedCv, form }` — честный разбор готового CV (используется при импорте PDF/DOCX).
 Ответы валидируются zod-схемами.
+
+**Двухэтапный отбор под вакансию** (основной путь — `generateCvWithSelection`):
+1. `selectRelevant(input, provider)` — этап селекции: по полному профилю (с тегами доменов)
+   и тексту вакансии возвращает индексы только релевантных пунктов опыта/навыков/проектов/
+   образования/языков.
+2. `buildSubset(input, selection)` — детерминированно фильтрует `GenerateRequest` по индексам.
+3. `generateCv(subset)` — этап генерации видит только отобранное подмножество.
+
+Селекция запускается только при наличии текста вакансии и данных; при ошибке/пустом
+подмножестве — фолбэк на `generateCv(input)` из полного профиля.
 
 **Контракт `AdaptedCv`**: `{ lang, name, title_line, header_note?, contacts[],
 sections[] }`, где `sections` — discriminated union (`paragraph`/`bullets`/`experience`/`projects`).
@@ -253,10 +263,14 @@ JWT (`token.sub` = id) → `session.user.id`. `proxy.ts` защищает `/dash
 `/settings` (через `auth.config.ts`).
 
 ### Генерация CV
-`Generator` → вакансия (ссылка/текст) → `ModeSelector` → (дисклеймер) → `CvForm`
-(объём «произвольная форма/одна страница», шаблон/цвет/тема, «свой промт» на последнем
-шаге) → `POST /api/generate` → `resolveProvider` → `generateCv` → опц. сохранение →
-`buildDocx` → файл.
+`Generator` → вакансия (ссылка/текст) + выбор профиля → `ModeSelector` → (дисклеймер).
+С сохранённым профилем открывается **быстрый режим** (`QuickGenerate`: экран-сводка
+«профиль + вакансия + оформление» → генерация) вместо визарда; «Заполнить вручную» открывает
+`CvForm` (мультишаг: личные → навыки → опыт → … → вакансия → оформление). Режим
+«сгенерировать опыт» показывает только личные данные + вакансию + оформление.
+`POST /api/generate` → `resolveProvider` → `generateCvWithSelection` (отбор + генерация) →
+опц. сохранение → `buildDocx` → файл. Профиль редактируется на одной странице
+(`ProfileEditor`, секции сразу, теги доменов у опыта/проектов).
 
 ### Трекинг отклика
 `/applications/new` → `POST /api/applications` (этап «Черновик»); kanban

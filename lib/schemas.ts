@@ -23,6 +23,11 @@ export type SkillLevel = z.infer<typeof skillLevelSchema>
 
 const optionalText = z.string().trim().optional()
 
+const tagsSchema = z
+  .array(z.string().trim().min(1, "Пустой домен").max(40, "Слишком длинный домен"))
+  .max(10, "Не больше 10 доменов")
+  .optional()
+
 export const personalSchema = z.object({
   name: z.string().trim().min(1, "Укажите имя"),
   phone: optionalText,
@@ -56,6 +61,7 @@ export const experienceSchema = z.object({
       })
     )
     .min(1, "Добавьте хотя бы одну обязанность"),
+  tags: tagsSchema,
 })
 
 export const educationSchema = z.object({
@@ -69,6 +75,7 @@ export const projectSchema = z.object({
   description: optionalText,
   stack: optionalText,
   achievements: optionalText,
+  tags: tagsSchema,
 })
 
 export const languageSchema = z.object({
@@ -84,7 +91,7 @@ export const vacancySchema = z.object({
 
 export const cvFormSchema = z.object({
   personal: personalSchema,
-  skills: z.array(skillSchema).min(1, "Добавьте хотя бы один навык"),
+  skills: z.array(skillSchema),
   experience: z.array(experienceSchema),
   education: z.array(educationSchema),
   projects: z.array(projectSchema),
@@ -114,3 +121,13 @@ export type LanguageValues = z.infer<typeof languageSchema>
 export type VacancyValues = z.infer<typeof vacancySchema>
 export type CvFormValues = z.infer<typeof cvFormSchema>
 export type GenerateRequest = z.infer<typeof generateRequestSchema>
+
+export const selectionSchema = z.object({
+  experience: z.array(z.number().int().nonnegative()),
+  skills: z.array(z.number().int().nonnegative()),
+  projects: z.array(z.number().int().nonnegative()),
+  education: z.array(z.number().int().nonnegative()),
+  languages: z.array(z.number().int().nonnegative()),
+})
+
+export type RelevantSubset = z.infer<typeof selectionSchema>

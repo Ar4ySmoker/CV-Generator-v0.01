@@ -16,6 +16,8 @@ import {
 
 import type { CvFormValues } from "@/lib/schemas"
 
+import { TagsField } from "@/components/form/fields"
+
 export function ProjectsStep() {
   const { control } = useFormContext<CvFormValues>()
   const { fields, append, remove } = useFieldArray({
@@ -109,6 +111,7 @@ export function ProjectsStep() {
               </FormItem>
             )}
           />
+          <TagsField name={`projects.${index}.tags`} />
         </div>
       ))}
       <Button

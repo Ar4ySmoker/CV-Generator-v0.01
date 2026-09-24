@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { generateCv, parseCvFromText } from "./llm"
+import { generateCv, generateCvWithSelection, parseCvFromText } from "./llm"
 import type { GenerateRequest } from "./schemas"
 
 const provider = { baseUrl: "https://mock.local", apiKey: "k", model: "m" }
@@ -95,6 +95,88 @@ describe("generateCv", () => {
   it("throws on malformed JSON", async () => {
     mockFetch("not json at all")
     await expect(generateCv(input, provider)).rejects.toThrow()
+  })
+})
+
+describe("generateCvWithSelection", () => {
+  const richInput: GenerateRequest = {
+    ...input,
+    skills: [
+      { name: "React", level: "intermediate" },
+      { name: "Сварка", level: "expert" },
+    ],
+    experience: [
+      {
+        period: "2020—2023",
+        role: "Frontend",
+        company: "A",
+        bullets: [{ value: "React" }],
+      },
+      {
+        period: "2015—2020",
+        role: "Автослесарь",
+        company: "B",
+        bullets: [{ value: "Ремонт" }],
+      },
+    ],
+    projects: [],
+    education: [],
+    languages: [],
+    vacancy: { source: "text", text: "Нужен React-разработчик" },
+  }
+
+  it("selects a relevant subset before generating", async () => {
+    const calls: string[] = []
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (_url: string, init: { body: string }) => {
+        const body = JSON.parse(init.body) as {
+          messages: Array<{ role: string; content: string }>
+        }
+        calls.push(body.messages[1].content)
+        const content =
+          calls.length === 1
+            ? JSON.stringify({
+                experience: [0],
+                skills: [0],
+                projects: [],
+                education: [],
+                languages: [],
+              })
+            : JSON.stringify(validAdaptedCv)
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ choices: [{ message: { content } }] }),
+        }
+      })
+    )
+    const cv = await generateCvWithSelection(richInput, provider)
+    expect(cv.name).toBe("Иван Иванов")
+    expect(calls.length).toBe(2)
+    expect(calls[1]).toContain("React")
+    expect(calls[1]).not.toContain("Автослесарь")
+    expect(calls[1]).not.toContain("Сварка")
+  })
+
+  it("skips selection when no vacancy is present", async () => {
+    let count = 0
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async () => {
+        count += 1
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            choices: [{ message: { content: JSON.stringify(validAdaptedCv) } }],
+          }),
+        }
+      })
+    )
+    const cv = await generateCvWithSelection(input, provider)
+    expect(cv.name).toBe("Иван Иванов")
+    expect(count).toBe(1)
   })
 })
 

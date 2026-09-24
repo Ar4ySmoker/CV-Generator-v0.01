@@ -55,13 +55,19 @@
 ## Форма (мультишаг)
 
 Шаги: личные данные → навыки → опыт (только «с опытом») → образование → проекты →
-языки → вакансия (текст или URL; при блокировке URL — «вставьте текст»).
+языки → вакансия (текст или URL; при блокировке URL — «вставьте текст») → оформление
+(объём «одна страница»/шаблон/свой промт). Режим «сгенерировать опыт» — только
+личные данные → вакансия → оформление. С сохранённым профилем вместо визарда
+открывается быстрый режим (`QuickGenerate`); профиль — «мастер-данные» с тегами
+доменов у опыта/проектов.
 
 ## Ключевые файлы (для навигации)
 
 - `lib/schemas.ts` — Zod-схема `CvFormValues` и запроса генерации.
-- `lib/llm.ts` — LLM-клиент + промпты + контракт `AdaptedCv`; `lib/providers.ts` —
-  каталог провайдеров; `lib/resolve-provider.ts` — выбор ключа.
+- `lib/llm.ts` — LLM-клиент + промпты + контракт `AdaptedCv`; двухэтапный отбор под
+  вакансию (`selectRelevant` → `buildSubset` → `generateCv`, оркестратор
+  `generateCvWithSelection`); `lib/providers.ts` — каталог провайдеров;
+  `lib/resolve-provider.ts` — выбор ключа.
 - `lib/docx.ts` (+ `lib/cv-templates.ts`) — сборка DOCX и шаблоны; `lib/vacancy.ts` —
   fetch вакансии; `lib/cv-import.ts` — импорт PDF/DOCX.
 - `lib/auth.ts` (+ `auth.config.ts`, `proxy.ts`) — NextAuth и защита маршрутов;
@@ -69,8 +75,11 @@
 - `lib/team.ts` — команды/роли/активность; `lib/vacancy-sources/*` — источники
   поиска вакансий; `lib/telegram-feed.ts` — Telegram-лента.
 - `lib/models/*` — Mongoose-модели; `lib/pipeline.ts` — дефолтные этапы.
-- `components/form/cv-form.tsx` — мультишаг; `components/generator.tsx` — машина
-  состояний режим→дисклеймер→форма.
+- `components/form/cv-form.tsx` — мультишаг; `components/form/profile-editor.tsx` —
+  одностраничный редактор профиля; `components/form/quick-generate.tsx` — быстрый режим
+  (профиль + вакансия → генерация); `components/form/generate-options.tsx` — блок
+  «объём/шаблон/промт»; `components/generator.tsx` — машина состояний
+  режим→дисклеймер→(быстрый режим | форма).
 
 ## Как проверять
 

@@ -17,6 +17,8 @@ import {
 
 import type { CvFormValues } from "@/lib/schemas"
 
+import { TagsField } from "@/components/form/fields"
+
 function BulletFields({ nestIndex }: { nestIndex: number }) {
   const { control } = useFormContext<CvFormValues>()
   const { fields, append, remove } = useFieldArray({
@@ -168,6 +170,7 @@ export function ExperienceStep() {
               <FormLabel>Обязанности и достижения</FormLabel>
               <BulletFields nestIndex={index} />
             </div>
+            <TagsField name={`experience.${index}.tags`} />
           </CardContent>
         </Card>
       ))}

@@ -38,10 +38,8 @@ import { EducationStep } from "@/components/form/steps/education-step"
 import { ProjectsStep } from "@/components/form/steps/projects-step"
 import { LanguagesStep } from "@/components/form/steps/languages-step"
 import { VacancyStep } from "@/components/form/steps/vacancy-step"
-import { TemplatePicker } from "@/components/form/template-picker"
+import { GenerateOptions } from "@/components/form/generate-options"
 import type { CustomThemeOption } from "@/components/form/template-picker"
-import { LengthSelector } from "@/components/form/length-selector"
-import { CustomPromptField } from "@/components/form/custom-prompt-field"
 
 type StepId =
   | "personal"
@@ -148,6 +146,11 @@ const DEFAULT_VALUES: CvFormValues = {
 }
 
 function buildSteps(mode: Mode): Step[] {
+  if (mode === "generate_experience") {
+    return ALL_STEPS.filter(
+      (s) => s.id === "personal" || s.id === "vacancy" || s.id === "options"
+    )
+  }
   return ALL_STEPS.filter((s) => s.id !== "experience" || mode === "with_experience")
 }
 
@@ -214,7 +217,24 @@ export function CvForm({
   }, [allowSaveProfile])
 
   const defaultValues = useMemo<CvFormValues>(() => {
-    const base = initialValues ? { ...initialValues } : DEFAULT_VALUES
+    const base: CvFormValues = initialValues
+      ? { ...initialValues }
+      : {
+          personal: { ...DEFAULT_VALUES.personal },
+          skills: DEFAULT_VALUES.skills.map((s) => ({ ...s })),
+          experience: [],
+          education: [],
+          projects: [],
+          languages: [],
+          vacancy: { source: "text" as const, text: "" },
+        }
+    if (mode === "generate_experience") {
+      base.skills = []
+      base.experience = []
+      base.education = []
+      base.projects = []
+      base.languages = []
+    }
     if (initialVacancy && (initialVacancy.text?.trim() || initialVacancy.url?.trim())) {
       base.vacancy = {
         source: initialVacancy.source,
@@ -225,7 +245,7 @@ export function CvForm({
       base.vacancy = { source: "text", text: vacancyText }
     }
     return base
-  }, [initialValues, vacancyText, initialVacancy])
+  }, [initialValues, vacancyText, initialVacancy, mode])
 
   const form = useForm<CvFormValues>({
     resolver: zodResolver(cvFormSchema),
@@ -514,26 +534,20 @@ export function CvForm({
             ) : null}
 
             {!isProfileMode && step.id === "options" ? (
-              <div className="flex flex-col gap-5">
-                <LengthSelector value={cvLength} onChange={setCvLength} />
-                <TemplatePicker
-                  templateId={templateId}
-                  themeId={themeId}
-                  accentColor={accentColor}
-                  onTemplate={(id) => {
-                    setTemplateId(id)
-                    setThemeId("")
-                  }}
-                  onTheme={setThemeId}
-                  onAccent={setAccentColor}
-                  customThemes={themes}
-                />
-                <CustomPromptField
-                  value={customPrompt}
-                  onChange={setCustomPrompt}
-                  allowSaveProfile={allowSaveProfile}
-                />
-              </div>
+              <GenerateOptions
+                cvLength={cvLength}
+                onLength={setCvLength}
+                templateId={templateId}
+                onTemplate={setTemplateId}
+                themeId={themeId}
+                onTheme={setThemeId}
+                accentColor={accentColor}
+                onAccent={setAccentColor}
+                customPrompt={customPrompt}
+                onPrompt={setCustomPrompt}
+                themes={themes}
+                allowSaveProfile={allowSaveProfile}
+              />
             ) : null}
 
             <div className="flex items-center justify-between gap-2">

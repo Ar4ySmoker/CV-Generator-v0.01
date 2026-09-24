@@ -127,3 +127,41 @@ export function SelectField({
     />
   )
 }
+
+export function TagsField({
+  name,
+  label = "Домены",
+  placeholder = "IT, управление, e-commerce",
+  description = "Через запятую — по ним ИИ отберёт релевантный опыт",
+}: {
+  name: string
+  label?: string
+  placeholder?: string
+  description?: string
+}) {
+  const { watch, setValue } = useFormContext<CvFormValues>()
+  const watched = watch(name as Path<CvFormValues>) as string[] | undefined
+  const value = (watched ?? []).join(", ")
+  return (
+    <FormItem>
+      {label ? <FormLabel>{label}</FormLabel> : null}
+      <FormControl>
+        <Input
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => {
+            const tags = e.target.value
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean)
+            setValue(name as Path<CvFormValues>, tags as never, {
+              shouldDirty: true,
+            })
+          }}
+        />
+      </FormControl>
+      {description ? <FormDescription>{description}</FormDescription> : null}
+      <FormMessage />
+    </FormItem>
+  )
+}

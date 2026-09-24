@@ -38,8 +38,6 @@ import { Textarea } from "@/components/ui/textarea"
 
 import { Generator } from "@/components/generator"
 import { formatRelative, salaryRange } from "@/lib/format"
-import type { CvFormValues } from "@/lib/schemas"
-
 import { ActivityTimeline } from "./activity-timeline"
 import { CompanyLogo } from "./company-logo"
 import { ContactPicker } from "./contact-picker"
@@ -55,13 +53,6 @@ import {
   type InterviewItem,
   type Stage,
 } from "./types"
-
-interface ProfileItem {
-  id: string
-  label: string
-  isDefault: boolean
-  data: CvFormValues
-}
 
 const SOURCES = [
   "hh.ru",
@@ -130,20 +121,18 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
   const [stages, setStages] = useState<Stage[]>([])
   const [contacts, setContacts] = useState<ContactItem[]>([])
   const [interviews, setInterviews] = useState<InterviewItem[]>([])
-  const [profiles, setProfiles] = useState<ProfileItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
   const [hasTeam, setHasTeam] = useState(false)
 
   const load = useCallback(async () => {
-    const [appRes, stagesRes, contactsRes, interviewsRes, profilesRes, teamRes] =
+    const [appRes, stagesRes, contactsRes, interviewsRes, teamRes] =
       await Promise.all([
         fetch(`/api/applications/${applicationId}`),
         fetch("/api/stages"),
         fetch("/api/contacts"),
         fetch(`/api/interviews?applicationId=${applicationId}`),
-        fetch("/api/profiles"),
         fetch("/api/teams"),
       ])
     if (!appRes.ok) {
@@ -164,10 +153,6 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
     if (interviewsRes.ok) {
       const d = (await interviewsRes.json()) as { interviews: InterviewItem[] }
       setInterviews(d.interviews)
-    }
-    if (profilesRes.ok) {
-      const d = (await profilesRes.json()) as { profiles: ProfileItem[] }
-      setProfiles(d.profiles)
     }
     if (teamRes.ok) {
       const d = (await teamRes.json()) as { teams: unknown[] }
@@ -263,8 +248,6 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
       (a, b) =>
         new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
     )
-  const defaultProfile =
-    profiles.find((p) => p.isDefault) ?? profiles[0] ?? null
   const isOfferStage =
     currentStage?.name === "Офер" || currentStage?.terminalResult === "accepted"
   const salary = salaryRange(app.salaryMin, app.salaryMax, app.currency)
@@ -667,11 +650,9 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
                     </Button>
                   </div>
                   <Generator
-                    initialValues={defaultProfile?.data}
                     vacancyText={app.vacancyText ?? undefined}
                     generateExtras={{ save: true, applicationId: app.id }}
                     showVacancyEntry={false}
-                    showProfilePicker={false}
                     onGenerated={() => {
                       setGenerating(false)
                       load()
