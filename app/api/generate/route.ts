@@ -2,6 +2,7 @@ import { generateRequestSchema } from "@/lib/schemas"
 import { generateCvWithSelection } from "@/lib/llm"
 import { buildDocx } from "@/lib/docx"
 import type { CvThemeStyle } from "@/lib/cv-templates"
+import { buildCvFilename } from "@/lib/format"
 import { fetchVacancyText, VacancyUrlError } from "@/lib/vacancy"
 import { auth } from "@/lib/auth"
 import { resolveProvider } from "@/lib/resolve-provider"
@@ -99,6 +100,22 @@ export async function POST(request: Request) {
       }
     }
 
+    let filename = "CV.docx"
+    if (input.applicationId && session?.user?.id) {
+      await connectDb()
+      const app = await Application.findOne({
+        _id: input.applicationId,
+        userId: session.user.id,
+      })
+      if (app) {
+        filename = buildCvFilename({
+          company: app.company,
+          role: app.role,
+          lang: cv.lang,
+        })
+      }
+    }
+
     const buffer = await buildDocx(cv, {
       template: input.templateId,
       accentColor: input.accentColor,
@@ -108,7 +125,7 @@ export async function POST(request: Request) {
     return new Response(new Uint8Array(buffer), {
       headers: {
         "Content-Type": DOCX_CONTENT_TYPE,
-        "Content-Disposition": 'attachment; filename="CV.docx"',
+        "Content-Disposition": `attachment; filename="${filename}"`,
       },
     })
   } catch (err) {

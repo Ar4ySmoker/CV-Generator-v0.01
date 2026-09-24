@@ -103,6 +103,7 @@ export const applicationUpdateSchema = z.object({
   sentChannel: optionalStr,
   sentTo: optionalStr,
   sentAt: z.string().nullable().optional(),
+  coverLetterText: optionalStr,
   stageId: z.string().optional(),
   offerSalary: optionalNum,
   offerCurrency: optionalStr,

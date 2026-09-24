@@ -30,6 +30,7 @@ export interface ApplicationDoc {
   sourceUrl?: string
   vacancyText?: string
   cvId?: string
+  coverLetterText?: string
   stageId: string
   timeline: TimelineEvent[]
   contactIds: string[]
@@ -78,6 +79,7 @@ const ApplicationSchema = new Schema<ApplicationDoc>(
     sourceUrl: { type: String },
     vacancyText: { type: String },
     cvId: { type: String },
+    coverLetterText: { type: String },
     stageId: { type: String, required: true, index: true },
     timeline: { type: [TimelineEventSchema], default: [] },
     contactIds: { type: [String], default: [] },

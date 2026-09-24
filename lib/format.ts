@@ -52,3 +52,22 @@ export function linkedinUrl(v: string): string {
   if (/^https?:\/\//i.test(v)) return v
   return `https://${v.replace(/^\/+/, "")}`
 }
+
+function slug(v: string): string {
+  return v
+    .trim()
+    .replace(/[\s/\\:*?"<>|]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "")
+}
+
+export function buildCvFilename(opts: {
+  company?: string | null
+  role?: string | null
+  lang?: string | null
+}): string {
+  const parts = [opts.company, opts.lang, opts.role]
+    .map((p) => (p ? slug(p) : ""))
+    .filter(Boolean)
+  return parts.length > 0 ? `CV_${parts.join("_")}.docx` : "CV.docx"
+}

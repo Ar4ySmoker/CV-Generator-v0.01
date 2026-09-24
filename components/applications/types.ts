@@ -36,6 +36,7 @@ export interface ApplicationItem {
   sourceUrl: string | null
   vacancyText: string | null
   cvId: string | null
+  coverLetterText: string | null
   stageId: string
   timeline: TimelineEvent[]
   contactIds: string[]

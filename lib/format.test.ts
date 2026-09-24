@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest"
 
-import { linkedinUrl, phoneHref, salaryRange, telegramUrl } from "./format"
+import {
+  buildCvFilename,
+  linkedinUrl,
+  phoneHref,
+  salaryRange,
+  telegramUrl,
+} from "./format"
 
 describe("telegramUrl", () => {
   it("strips leading @", () => {
@@ -39,5 +45,23 @@ describe("salaryRange", () => {
 
   it("returns empty when both null", () => {
     expect(salaryRange(null, null, null)).toBe("")
+  })
+})
+
+describe("buildCvFilename", () => {
+  it("builds company_lang_role filename", () => {
+    expect(
+      buildCvFilename({ company: "Cloud", lang: "ru", role: "Senior Frontend" })
+    ).toBe("CV_Cloud_ru_Senior_Frontend.docx")
+  })
+
+  it("collapses spaces and unsafe characters", () => {
+    expect(
+      buildCvFilename({ company: "ACME / Corp", lang: "en", role: "Dev/Ops" })
+    ).toBe("CV_ACME_Corp_en_Dev_Ops.docx")
+  })
+
+  it("falls back to CV.docx when empty", () => {
+    expect(buildCvFilename({})).toBe("CV.docx")
   })
 })

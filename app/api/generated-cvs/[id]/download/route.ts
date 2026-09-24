@@ -2,7 +2,9 @@ import { getUserId } from "@/lib/auth"
 import { connectDb } from "@/lib/db"
 import { buildDocx } from "@/lib/docx"
 import type { CvThemeStyle } from "@/lib/cv-templates"
+import { buildCvFilename } from "@/lib/format"
 import type { AdaptedCv } from "@/lib/llm"
+import { Application } from "@/lib/models/application"
 import { GeneratedCv } from "@/lib/models/generated-cv"
 import { CvTheme } from "@/lib/models/cv-theme"
 
@@ -47,10 +49,23 @@ export async function GET(
     theme: themeStyle,
   })
 
+  let company: string | null = null
+  let role: string | null = null
+  if (doc.applicationId) {
+    const app = await Application.findOne({ _id: doc.applicationId, userId })
+    company = app?.company ?? null
+    role = app?.role ?? null
+  }
+  const filename = buildCvFilename({
+    company,
+    role,
+    lang: doc.lang,
+  })
+
   return new Response(new Uint8Array(buffer), {
     headers: {
       "Content-Type": DOCX_CONTENT_TYPE,
-      "Content-Disposition": 'attachment; filename="CV.docx"',
+      "Content-Disposition": `attachment; filename="${filename}"`,
     },
   })
 }

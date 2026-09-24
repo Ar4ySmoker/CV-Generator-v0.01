@@ -7,11 +7,13 @@ import {
   ArrowLeft,
   CalendarClock,
   Check,
+  Copy,
   Download,
   Trash,
   Wand,
   X,
 } from "lucide-react"
+import { toast } from "sonner"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -112,6 +114,117 @@ function NotesCard({
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+function CoverLetterCard({
+  initial,
+  applicationId,
+  onSaved,
+}: {
+  initial: string | null
+  applicationId: string
+  onSaved: () => void
+}) {
+  const [value, setValue] = useState(initial ?? "")
+  const [generating, setGenerating] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    setValue(initial ?? "")
+  }, [initial])
+
+  const dirty = value !== (initial ?? "")
+
+  async function generate() {
+    setGenerating(true)
+    try {
+      const res = await fetch(`/api/applications/${applicationId}/cover-letter`, {
+        method: "POST",
+      })
+      if (!res.ok) {
+        const d = (await res.json().catch(() => ({}))) as { error?: string }
+        throw new Error(d?.error ?? "Не удалось сгенерировать письмо")
+      }
+      const d = (await res.json()) as { text: string }
+      setValue(d.text)
+      setSaved(false)
+      onSaved()
+      toast.success("Письмо сгенерировано и сохранено")
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Не удалось сгенерировать письмо")
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(value)
+      toast.success("Письмо скопировано")
+    } catch {
+      toast.error("Не удалось скопировать")
+    }
+  }
+
+  async function save() {
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/applications/${applicationId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ coverLetterText: value }),
+      })
+      if (!res.ok) {
+        const d = (await res.json().catch(() => ({}))) as { error?: string }
+        throw new Error(d?.error ?? "Не удалось сохранить")
+      }
+      setSaved(true)
+      onSaved()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Не удалось сохранить")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <h3 className="text-sm font-medium">Сопроводительное письмо</h3>
+      <Button
+        variant="secondary"
+        className="w-fit"
+        onClick={generate}
+        disabled={generating}
+      >
+        <Wand />
+        {generating ? "Генерируем…" : "Сгенерировать сопроводительное письмо"}
+      </Button>
+      {value ? (
+        <div className="flex flex-col gap-2">
+          <Textarea
+            value={value}
+            onChange={(e) => {
+              setValue(e.target.value)
+              setSaved(false)
+            }}
+            className="min-h-40"
+          />
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={copy}>
+              <Copy /> Скопировать
+            </Button>
+            <Button size="sm" onClick={save} disabled={saving || !dirty}>
+              {saving ? "Сохраняем…" : "Сохранить"}
+            </Button>
+            {saved && !dirty ? (
+              <span className="text-xs text-muted-foreground">Сохранено</span>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+    </div>
   )
 }
 
@@ -660,6 +773,14 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
                   />
                 </div>
               ) : null}
+
+              <Separator />
+
+              <CoverLetterCard
+                initial={app.coverLetterText}
+                applicationId={app.id}
+                onSaved={load}
+              />
             </CardContent>
           </Card>
         </TabsContent>

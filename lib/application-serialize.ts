@@ -23,6 +23,7 @@ export function serializeApplication(app: ApplicationDoc) {
     sourceUrl: app.sourceUrl ?? null,
     vacancyText: app.vacancyText ?? null,
     cvId: app.cvId ?? null,
+    coverLetterText: app.coverLetterText ?? null,
     stageId: app.stageId,
     timeline: app.timeline ?? [],
     contactIds: app.contactIds ?? [],

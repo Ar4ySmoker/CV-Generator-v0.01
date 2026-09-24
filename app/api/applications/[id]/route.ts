@@ -79,6 +79,7 @@ export async function PATCH(
   if (data.sourceType !== undefined) app.sourceType = cleanOptional(data.sourceType)
   if (data.sourceUrl !== undefined) app.sourceUrl = cleanOptional(data.sourceUrl)
   if (data.vacancyText !== undefined) app.vacancyText = cleanOptional(data.vacancyText)
+  if (data.coverLetterText !== undefined) app.coverLetterText = cleanOptional(data.coverLetterText)
   if (data.notes !== undefined) app.notes = cleanOptional(data.notes)
   if (data.contactIds !== undefined) app.contactIds = data.contactIds
   if (data.sentChannel !== undefined) app.sentChannel = cleanOptional(data.sentChannel)

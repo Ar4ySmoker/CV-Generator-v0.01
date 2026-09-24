@@ -230,7 +230,8 @@ function stripFences(text: string): string {
 async function callChatCompletion(
   provider: ChatProvider,
   system: string,
-  user: string
+  user: string,
+  jsonResponse = true
 ): Promise<string> {
   const endpoint = provider.baseUrl.replace(/\/+$/, "") + "/chat/completions"
 
@@ -248,7 +249,7 @@ async function callChatCompletion(
       ],
       temperature: 0.5,
       max_tokens: 4000,
-      response_format: { type: "json_object" },
+      ...(jsonResponse ? { response_format: { type: "json_object" } } : {}),
     }),
   })
 
@@ -428,6 +429,59 @@ export async function generateCvWithSelection(
   } catch {
     return generateCv(input, provider)
   }
+}
+
+export interface CoverLetterContext {
+  name: string
+  title: string
+  contacts: string[]
+  profile: string
+  company: string
+  role: string
+  vacancyText?: string
+}
+
+export async function generateCoverLetter(
+  ctx: CoverLetterContext,
+  provider: ChatProvider
+): Promise<string> {
+  const system =
+    "Ты — опытный рекрутинговый консультант и копирайтер. Ты пишешь короткие, убедительные сопроводительные письма (cover letter) для отправки резюме по email."
+
+  const vacancy = ctx.vacancyText?.trim()
+  const vacancyBlock = vacancy
+    ? `Вакансия:\n"""\n${vacancy}\n"""\n`
+    : "Текст вакансии не задан — опирайся на название должности и компании.\n"
+
+  const signature = [ctx.name, ctx.title].filter(Boolean).join(", ")
+
+  const user = `Составь сопроводительное письмо для отправки на email вместе с резюме.
+
+Компания: ${ctx.company}
+Должность: ${ctx.role}
+
+Данные кандидата:
+Имя: ${ctx.name}
+Должность в резюме: ${ctx.title || "—"}
+Контакты: ${ctx.contacts.join("; ") || "—"}
+
+Профиль кандидата:
+"""
+${ctx.profile}
+"""
+
+${vacancyBlock}
+Правила:
+- Язык письма — по языку вакансии; если вакансии нет — русский.
+- Начни с приветствия «Здравствуйте!» (имя рекрутера неизвестно — не выдумывай его).
+- 2–3 коротких абзаца: (1) кто ты и на какую позицию откликаешься, (2) 2–3 конкретных достижения/навыка из профиля, релевантных вакансии, (3) готовность к диалогу и призыв к действию.
+- Используй только реальные факты из профиля. НЕ выдумывай стаж, цифры, компании, технологии.
+- Без «воды», канцелярита и фраз «я ищу себя», «очень хочу». Уверенно и по делу.
+- Заверши подписью: ${signature}, затем контакты (телефон и email) каждый с новой строки.
+- Верни ТОЛЬКО готовый текст письма (без markdown, без темы письма, без пояснений).`
+
+  const raw = await callChatCompletion(provider, system, user, false)
+  return raw.trim()
 }
 
 const PARSE_OUTPUT_CONTRACT = `Верни ТОЛЬКО валидный JSON без пояснений и без markdown-обёрток. Схема:
