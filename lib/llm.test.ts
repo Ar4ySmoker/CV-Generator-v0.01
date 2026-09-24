@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { extractVacancyMeta, generateCv, generateCvWithSelection, parseCvFromText } from "./llm"
+import {
+  extractVacancyMeta,
+  generateCv,
+  generateCvWithSelection,
+  parseCvFromText,
+  vacancyLevel,
+} from "./llm"
 import type { GenerateRequest } from "./schemas"
 
 const provider = { baseUrl: "https://mock.local", apiKey: "k", model: "m" }
@@ -297,5 +303,19 @@ describe("extractVacancyMeta", () => {
   it("throws on invalid response", async () => {
     mockFetch(JSON.stringify({ salaryMin: "не число" }))
     await expect(extractVacancyMeta("текст", provider)).rejects.toThrow()
+  })
+})
+
+describe("vacancyLevel", () => {
+  it("detects стажёр/junior vacancies", () => {
+    expect(vacancyLevel("Ищем стажёра JavaScript разработчика")).toBe("junior")
+    expect(vacancyLevel("Junior Frontend Developer")).toBe("junior")
+    expect(vacancyLevel("Опыт работы: не требуется, обучение")).toBe("junior")
+  })
+
+  it("treats other vacancies as regular", () => {
+    expect(vacancyLevel("Senior Full Stack Developer, 5+ лет")).toBe("regular")
+    expect(vacancyLevel("")).toBe("regular")
+    expect(vacancyLevel(null)).toBe("regular")
   })
 })

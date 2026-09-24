@@ -51,7 +51,7 @@ app/
 components/
   ui/                             # shadcn-компоненты
   app/                            # app-sidebar.tsx, app-shell.tsx
-  form/                           # cv-form, profile-editor, quick-generate, generate-options, template-picker, mode-selector, disclaimer-dialog, steps/*
+  form/                           # cv-form, profile-editor, quick-generate, generate-options, template-picker, mode-selector, disclaimer-dialog, post-generate-actions, steps/*
   generator.tsx
   applications/                   # applications-board, pipeline-board, application-card, application-detail, activity-timeline, company-logo, stage-badge, contact-picker, cv-import, send/response/interview-dialog, application-form, types.ts
   dashboard/, offers/, contacts/
@@ -92,7 +92,7 @@ Telegram-каналы) — общие.
 | `cvthemes` | `userId`, `name`, `font`, `accent`, `body`, `gray`, `heading` (`underline`/`bar`/`plain`), `accentRule`, `isDefault` |
 | `generatedcvs` | `userId`, `applicationId?`, `profileId?`, `adaptedCv`, `inputSnapshot`, `lang`, `source` (`generated`/`import`), `templateId?`, `accentColor?`, `themeId?` |
 | `pipelinestages` | `userId`, `name`, `order`, `color`, `type` (`start`/`active`/`terminal`), `terminalResult?` |
-| `applications` | `userId`, `company`, `role`, `companyDomain?`, `country?`, `salaryMin/Max?`, `currency?`, `sourceType?`, `sourceUrl?`, `vacancyText?`, `cvId?`, `stageId`, `timeline[]`, `contactIds[]`, `notes?`, `sentChannel?/sentTo?/sentAt?`, `offerSalary?/offerCurrency?/offerBenefits?/offerRemote?`, `visibility` (`private`/`team`), `shareSalary`, `shareNotes`, `archived` |
+| `applications` | `userId`, `company`, `role`, `companyDomain?`, `country?`, `salaryMin/Max?`, `currency?`, `sourceType?`, `sourceUrl?`, `vacancyText?`, `cvId?`, `coverLetterText?`, `stageId`, `timeline[]`, `contactIds[]`, `notes?`, `sentChannel?/sentTo?/sentAt?`, `offerSalary?/offerCurrency?/offerBenefits?/offerRemote?`, `visibility` (`private`/`team`), `shareSalary`, `shareNotes`, `archived` |
 | `contacts` | `userId`, `name`, `email?`, `phone?`, `telegram?`, `linkedin?`, `company?`, `role?`, `notes?` |
 | `interviews` | `userId`, `applicationId`, `type`, `scheduledAt`, `channel?`, `note?`, `status` (`scheduled`/`done`/`cancelled`), `reminderSentAt?` |
 | `pushsubscriptions` | `userId`, `endpoint` (unique), `keys.p256dh`, `keys.auth` |
@@ -135,6 +135,18 @@ OpenAI-совместимые (`POST {baseUrl}/chat/completions`).
 `{ adaptedCv, form }` — честный разбор готового CV (используется при импорте PDF/DOCX).
 Ответы валидируются zod-схемами.
 
+`vacancyLevel(text)` — детерминированно определяет уровень вакансии (`junior`/`regular`) по
+ключевым словам (`стажер`, `junior`, `intern`, `без опыта`, `опыт… не требуется` и т.п.).
+Тон и структура «О себе» в CV переключаются по этому уровню: для стажёрских вакансий —
+скромно, акцент на фундамент JS (типы/прототипы/AJAX), пет-проекты и мотивацию, без
+senior-пафоса; для обычных — заявка ценности + метрики.
+
+`generateCoverLetter(ctx, provider)` → строка-письмо (сопроводительное). Лимит ~130 слов,
+запрет дублировать резюме, подпись со всеми контактами (телефон/email/telegram/github/сайт),
+тон по `vacancyLevel`. `extractVacancyMeta(text, provider)` → `{ company?, role?, country?,
+salaryMin?, salaryMax?, currency? }` — извлечение структурированных данных о вакансии
+(используется для предзаполнения отклика/вакансии после генерации).
+
 **Двухэтапный отбор под вакансию** (основной путь — `generateCvWithSelection`):
 1. `selectRelevant(input, provider)` — этап селекции: по полному профилю (с тегами доменов)
    и тексту вакансии возвращает индексы только релевантных пунктов опыта/навыков/проектов/
@@ -154,6 +166,10 @@ sections[] }`, где `sections` — discriminated union (`paragraph`/`bullets`/
 заголовки), `modern` (левая акцентная полоса + линия под шапкой), `minimal`
 (монохром). Цвет акцента переопределяется. Пользовательская тема (`CvThemeStyle`: шрифт,
 цвета, стиль заголовков, акцентная линия) переопределяет пресет.
+
+Имя скачиваемого файла — `CV_<Компания>_<lang>_<Роль>.docx` (`buildCvFilename` в
+`lib/format.ts`); кириллица в `Content-Disposition` кодируется по RFC 5987
+(`contentDispositionAttachment`, клиент читает имя через `filenameFromContentDisposition`).
 
 ### Импорт CV (`lib/cv-import.ts`)
 
@@ -189,6 +205,7 @@ zod-валидация, проверка владельца/прав.
 |---|---|
 | `GET/POST /api/applications` (`?search=`, `?archived=1`) | Список / создание |
 | `GET/PATCH/DELETE /api/applications/:id` | Детали / обновление (смена этапа → таймлайн + activity команды; шаринг → upsert `Vacancy`) / удаление |
+| `POST /api/applications/:id/cover-letter` | Генерация сопроводительного письма из CV/профиля отклика (сохраняется в `coverLetterText`) |
 | `GET/POST /api/contacts`, `PATCH/DELETE /api/contacts/:id` | Адресная книга |
 | `GET/POST /api/interviews`, `PATCH/DELETE /api/interviews/:id` | События |
 
@@ -229,6 +246,7 @@ zod-валидация, проверка владельца/прав.
 | `POST /api/vacancies/:id/status` | Статус `saved`/`applied`/`skipped` |
 | `POST /api/vacancies/:id/apply` | Конвертация в отклик (создаёт `Application`) |
 | `POST /api/vacancies/import` | Сохранить (+ опц. `apply`) из внешнего результата поиска |
+| `POST /api/vacancies/parse` (`{ text?, url? }`) | Извлечь `company`/`role`/… из текста вакансии (LLM), без сохранения |
 | `GET /api/vacancies/search` (`?q=&remote=1&source=`) | Живой поиск по источникам |
 
 ### Telegram
@@ -270,7 +288,10 @@ JWT (`token.sub` = id) → `session.user.id`. `proxy.ts` защищает `/dash
 «сгенерировать опыт» показывает только личные данные + вакансию + оформление.
 `POST /api/generate` → `resolveProvider` → `generateCvWithSelection` (отбор + генерация) →
 опц. сохранение → `buildDocx` → файл. Профиль редактируется на одной странице
-(`ProfileEditor`, секции сразу, теги доменов у опыта/проектов).
+(`ProfileEditor`, секции сразу, теги доменов у опыта/проектов). На главной после генерации
+(`Generator` с `showPostGenerate`) показывается панель «Добавить в трекер» — предлагает
+создать отклик/вакансию (или оба), предзаполняя `company`/`role` через `/api/vacancies/parse`
+(`PostGenerateActions`).
 
 ### Трекинг отклика
 `/applications/new` → `POST /api/applications` (этап «Черновик»); kanban
