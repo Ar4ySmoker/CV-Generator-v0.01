@@ -15,6 +15,7 @@ import {
   GraduationCap,
   Languages,
   LoaderCircle,
+  SlidersHorizontal,
   Target,
   User,
 } from "lucide-react"
@@ -50,6 +51,7 @@ type StepId =
   | "projects"
   | "languages"
   | "vacancy"
+  | "options"
 
 interface Step {
   id: StepId
@@ -117,6 +119,14 @@ const ALL_STEPS: Step[] = [
     fields: [],
     component: VacancyStep,
   },
+  {
+    id: "options",
+    title: "Оформление",
+    description: "Объём, шаблон и доп. инструкции",
+    icon: SlidersHorizontal,
+    fields: [],
+    component: () => null,
+  },
 ]
 
 const DEFAULT_VALUES: CvFormValues = {
@@ -172,7 +182,7 @@ export function CvForm({
 }) {
   const isProfileMode = submitMode === "saveProfile"
   const steps = buildSteps(mode).filter(
-    (s) => !(isProfileMode && s.id === "vacancy")
+    (s) => !(isProfileMode && (s.id === "vacancy" || s.id === "options"))
   )
   const [stepIndex, setStepIndex] = useState(0)
   const [label, setLabel] = useState(initialLabel)
@@ -503,7 +513,7 @@ export function CvForm({
               </Alert>
             ) : null}
 
-            {!isProfileMode && isLast ? (
+            {!isProfileMode && step.id === "options" ? (
               <div className="flex flex-col gap-5">
                 <LengthSelector value={cvLength} onChange={setCvLength} />
                 <TemplatePicker

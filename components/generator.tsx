@@ -1,12 +1,19 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useSession } from "next-auth/react"
-import { Clipboard, Link2, Target } from "lucide-react"
+import { Clipboard, Link2, Target, User } from "lucide-react"
 
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 
 import { CvForm } from "@/components/form/cv-form"
@@ -21,6 +28,14 @@ export interface GeneratorOptions {
   generateExtras?: { save?: boolean; applicationId?: string; profileId?: string }
   onGenerated?: () => void
   showVacancyEntry?: boolean
+  showProfilePicker?: boolean
+}
+
+interface ProfileItem {
+  id: string
+  label: string
+  isDefault: boolean
+  data: CvFormValues
 }
 
 export function Generator({
@@ -29,6 +44,7 @@ export function Generator({
   generateExtras,
   onGenerated,
   showVacancyEntry = true,
+  showProfilePicker = true,
 }: GeneratorOptions) {
   const { status } = useSession()
   const [mode, setMode] = useState<Mode | null>(null)
@@ -36,6 +52,30 @@ export function Generator({
   const [disclaimerOpen, setDisclaimerOpen] = useState(false)
   const [vacancySource, setVacancySource] = useState<"text" | "url">("text")
   const [vacancyValue, setVacancyValue] = useState("")
+  const [profiles, setProfiles] = useState<ProfileItem[]>([])
+  const [selectedProfileId, setSelectedProfileId] = useState("")
+
+  useEffect(() => {
+    if (status !== "authenticated" || !showProfilePicker || initialValues) return
+    let cancelled = false
+    fetch("/api/profiles")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { profiles?: ProfileItem[] } | null) => {
+        if (!cancelled && data?.profiles?.length) {
+          setProfiles(data.profiles)
+          setSelectedProfileId(
+            data.profiles.find((p) => p.isDefault)?.id ?? data.profiles[0].id
+          )
+        }
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [status, showProfilePicker, initialValues])
+
+  const selectedProfile = profiles.find((p) => p.id === selectedProfileId)
+  const effectiveInitialValues = initialValues ?? selectedProfile?.data
 
   function handleSelect(next: Mode) {
     if (next === "generate_experience") {
@@ -68,7 +108,7 @@ export function Generator({
         mode={mode}
         disclaimerAccepted={accepted}
         onBack={reset}
-        initialValues={initialValues}
+        initialValues={effectiveInitialValues}
         vacancyText={vacancyText}
         initialVacancy={initialVacancy}
         generateExtras={generateExtras}
@@ -79,6 +119,34 @@ export function Generator({
   } else {
     content = (
       <div className="flex flex-col gap-6">
+        {showProfilePicker && status === "authenticated" && profiles.length > 0 ? (
+          <div className="rounded-2xl border border-border/60 bg-card p-4">
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <User className="size-4 text-primary" />
+                Профиль
+              </div>
+              <Select
+                value={selectedProfileId || "none"}
+                onValueChange={(v) =>
+                  setSelectedProfileId(v === "none" ? "" : v)
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Выберите профиль" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Без профиля (ввести вручную)</SelectItem>
+                  {profiles.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        ) : null}
         {showVacancyEntry ? (
           <div className="rounded-2xl border border-border/60 bg-card p-4">
             <div className="flex flex-col gap-3">

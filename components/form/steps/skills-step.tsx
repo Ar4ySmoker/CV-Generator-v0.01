@@ -40,7 +40,7 @@ export function SkillsStep() {
       {fields.map((field, index) => (
         <div
           key={field.id}
-          className="flex items-start gap-2 rounded-xl border border-border/60 p-3"
+          className="flex flex-col gap-2 rounded-xl border border-border/60 p-3 sm:flex-row sm:items-start"
         >
           <FormField
             control={control}
@@ -58,7 +58,7 @@ export function SkillsStep() {
             control={control}
             name={`skills.${index}.level`}
             render={({ field }) => (
-              <FormItem className="w-40">
+              <FormItem className="w-full sm:w-40">
                 <Select
                   onValueChange={field.onChange}
                   value={field.value}
@@ -83,7 +83,7 @@ export function SkillsStep() {
             type="button"
             variant="ghost"
             size="icon"
-            className="mt-1 text-muted-foreground"
+            className="self-end text-muted-foreground sm:mt-1 sm:self-start"
             onClick={() => remove(index)}
             disabled={fields.length === 1}
           >

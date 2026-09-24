@@ -177,6 +177,7 @@ export function ProfilesManager() {
         </div>
         <Generator
           initialValues={profile?.data}
+          showProfilePicker={false}
           onGenerated={() => {
             setView("list")
             load()

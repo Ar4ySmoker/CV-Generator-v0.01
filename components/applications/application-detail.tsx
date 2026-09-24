@@ -671,6 +671,7 @@ export function ApplicationDetail({ applicationId }: { applicationId: string }) 
                     vacancyText={app.vacancyText ?? undefined}
                     generateExtras={{ save: true, applicationId: app.id }}
                     showVacancyEntry={false}
+                    showProfilePicker={false}
                     onGenerated={() => {
                       setGenerating(false)
                       load()
